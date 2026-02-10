@@ -1,0 +1,43 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Todo {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  dueDate     String?  @map("due_date")
+  priority    Int      @default(1)
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@map("todos")
+}
+
+model Memory {
+  id        Int      @id @default(autoincrement())
+  content   String
+  type      String   @default("memory")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("memories")
+}
+
+model Conversation {
+  id        Int      @id @default(autoincrement())
+  message   String
+  response  String?
+  mode      String   @default("question")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("conversations")
+}
