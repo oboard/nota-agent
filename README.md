@@ -4,3 +4,18 @@
 技术我想用 next.js, vercel/ai-sdk, hero ui, electron, sqlite
 
 对于记忆的部分，不需要做任何的工具调用，因为后台需要根据聊天内容持续整理记忆
+
+
+
+# Q&A:
+```bash
+[0] Error: Could not locate the bindings file. Tried:
+[0]  → /Users/luoyuhang.22/Code/oboard/nota-agent/node_modules/.pnpm/better-sqlite3@12.6.2/node_modules/better-sqlite3/build/better_sqlite3.node
+[0]  → /Users/luoyuhang.22/Code/oboard/nota-agent/node_modules/.pnpm/better-sqlite3@12.6.2/node_modules/better-sqlite3/build/Debug/better_sqlite3.node
+```
+
+Solution:
+
+```bash
+pnpm rebuild better-sqlite3
+```
