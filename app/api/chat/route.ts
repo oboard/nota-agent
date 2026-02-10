@@ -1,11 +1,9 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { streamText, tool, generateObject } from "ai";
+import { streamText, tool, generateObject, convertToModelMessages } from "ai";
 import { z } from "zod";
 import { createTodo, addMemory, getRecentMemories, getTodos } from "@/app/actions";
 
 export const maxDuration = 30;
-
-
 
 export async function POST(req: Request) {
   const { messages, mode = "memory" } = await req.json();
@@ -44,7 +42,7 @@ ${currentTodos.map(t => `- [${t.completed ? "x" : " "}] ${t.title} (Priority: ${
 
   const result = streamText({
     model,
-    messages,
+    messages: await convertToModelMessages(messages),
     system: systemPrompt,
     tools: {
       createTodo: tool({
@@ -55,7 +53,7 @@ ${currentTodos.map(t => `- [${t.completed ? "x" : " "}] ${t.title} (Priority: ${
           dueDate: z.string().optional().describe("截止日期 (YYYY-MM-DD)"),
           priority: z.number().optional().describe("优先级 (1-5, 5最高)"),
         }),
-        execute: async (data, options) => {
+        execute: async (data) => {
           await createTodo(data);
           return `已创建待办事项: ${data.title}`;
         },
@@ -93,5 +91,5 @@ ${currentTodos.map(t => `- [${t.completed ? "x" : " "}] ${t.title} (Priority: ${
     },
   });
 
-  return result.toTextStreamResponse();
+  return result.toUIMessageStreamResponse();
 }

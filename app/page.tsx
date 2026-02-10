@@ -10,6 +10,7 @@ import { ScrollShadow } from "@heroui/scroll-shadow";
 import { Chip } from "@heroui/chip";
 import { Divider } from "@heroui/divider";
 import { getTodos, toggleTodo, deleteTodo, getRecentMemories } from "./actions";
+import { DefaultChatTransport, getToolName, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 type Todo = {
   id: number;
@@ -29,14 +30,14 @@ export default function Home() {
   const [mode, setMode] = useState<"memory" | "question">("memory");
   const [todos, setTodos] = useState<Todo[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [input, setInput] = useState('');
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } =
-    useChat({
-      body: { mode },
-      onFinish: () => {
-        refreshData();
-      },
-    });
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+    }),
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  })
 
   const refreshData = async () => {
     const [newTodos, newMemories] = await Promise.all([
@@ -96,38 +97,128 @@ export default function Home() {
           <Divider />
           <CardBody className="overflow-hidden flex flex-col gap-4 p-0">
             <ScrollShadow className="flex-1 p-4 gap-4 flex flex-col">
-              {messages.map((m) => (
+              {messages.map((m: any) => (
                 <div
                   key={m.id}
-                  className={`flex ${
-                    m.role === "user" ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex ${m.role === "user" ? "justify-end" : "justify-start"
+                    }`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-default-100"
-                    }`}
+                    className={`max-w-[80%] rounded-lg p-3 ${m.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-default-100"
+                      }`}
                   >
-                    <p className="whitespace-pre-wrap">{m.content}</p>
-                    {m.toolInvocations?.map((toolInvocation) => (
-                      <div
-                        key={toolInvocation.toolCallId}
-                        className="mt-2 text-xs opacity-70 border-t border-white/20 pt-2"
-                      >
-                        {toolInvocation.toolName === "createTodo" && (
-                          <span>✨ Created Todo: {toolInvocation.args.title}</span>
-                        )}
-                        {toolInvocation.toolName === "saveMemory" && (
-                          <span>🧠 Saved Memory</span>
-                        )}
-                      </div>
-                    ))}
+                    {m.parts.map(part => {
+                      switch (part.type) {
+                        // render text parts as simple text:
+                        case 'text':
+                          return part.text;
+
+                        case 'tool-call':
+                        case 'tool-call-streaming': {
+                          const toolCallId = part.toolCallId;
+                          const toolName = getToolName(part);
+
+                          return (
+                            <div key={toolCallId} className="mt-3 p-3 rounded-lg bg-default-50 border border-default-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-lg">
+                                  {toolName === "createTodo" ? "✅" : "🧠"}
+                                </span>
+                                <span className="text-sm font-medium text-default-600">
+                                  {toolName === "createTodo" ? "创建待办事项" : "保存记忆"}
+                                </span>
+                                <Chip size="sm" variant="flat" color="primary">
+                                  执行中
+                                </Chip>
+                              </div>
+                              {toolName === "createTodo" && (
+                                <div className="space-y-1 text-sm">
+                                  <div>
+                                    <span className="text-default-500">标题：</span>
+                                    <span className="font-medium">{part.output?.title}</span>
+                                  </div>
+                                  {part.output?.description && (
+                                    <div>
+                                      <span className="text-default-500">描述：</span>
+                                      <span>{part.output?.description}</span>
+                                    </div>
+                                  )}
+                                  {part.output?.dueDate && (
+                                    <div>
+                                      <span className="text-default-500">截止日期：</span>
+                                      <span>{part.output?.dueDate}</span>
+                                    </div>
+                                  )}
+                                  {part.output?.priority && part.output?.priority > 1 && (
+                                    <div>
+                                      <span className="text-default-500">优先级：</span>
+                                      <Chip size="sm" variant="flat" color="warning">
+                                        P{part.output?.priority}
+                                      </Chip>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {toolName === "saveMemory" && (
+                                <div className="text-sm">
+                                  <div>
+                                    <span className="text-default-500">内容：</span>
+                                    <span>{part.args.content}</span>
+                                  </div>
+                                  {part.args.type && part.args.type !== "memory" && (
+                                    <div>
+                                      <span className="text-default-500">类型：</span>
+                                      <Chip size="sm" variant="flat">{part.args.type}</Chip>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+
+                        }
+                        case 'tool-result':
+                          return (
+                            <div key={part.toolCallId} className="mt-3 p-3 rounded-lg bg-default-50 border border-default-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-lg">
+                                  {part.toolName === "createTodo" ? "✅" : "🧠"}
+                                </span>
+                                <span className="text-sm font-medium text-default-600">
+                                  {part.toolName === "createTodo" ? "创建待办事项" : "保存记忆"}
+                                </span>
+                                <Chip size="sm" variant="flat" color="success">
+                                  已完成
+                                </Chip>
+                              </div>
+                              <div className="text-sm text-default-500">
+                                {typeof part.result === 'string' ? part.result : JSON.stringify(part.result)}
+                              </div>
+                            </div>
+                          );
+                        case 'tool-error':
+                          return (
+                            <div key={part.toolCallId} className="mt-3 p-3 rounded-lg bg-danger-50 border border-danger-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-lg">❌</span>
+                                <span className="text-sm font-medium text-danger-600">
+                                  工具执行失败
+                                </span>
+                              </div>
+                              <div className="text-sm text-danger-600">
+                                {part.errorText}
+                              </div>
+                            </div>
+                          );
+                      }
+                    })}
+
                   </div>
                 </div>
               ))}
-              {isLoading && (
+              {status === "streaming" && (
                 <div className="flex justify-start">
                   <div className="bg-default-100 rounded-lg p-3 animate-pulse">
                     Thinking...
@@ -136,10 +227,17 @@ export default function Home() {
               )}
             </ScrollShadow>
             <div className="p-4 bg-content1 border-t border-divider">
-              <form onSubmit={handleSubmit} className="flex gap-2">
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  if (input.trim()) {
+                    sendMessage({ text: input });
+                    setInput('');
+                  }
+                }} className="flex gap-2">
                 <Input
                   value={input}
-                  onChange={handleInputChange}
+                  onChange={e => setInput(e.target.value)}
                   placeholder={
                     mode === "memory"
                       ? "Tell me something to remember or do..."
@@ -150,7 +248,7 @@ export default function Home() {
                 <Button
                   type="submit"
                   color="primary"
-                  isLoading={isLoading}
+                  isLoading={status == "streaming"}
                 >
                   Send
                 </Button>
@@ -204,9 +302,8 @@ export default function Home() {
               {todos.map((todo) => (
                 <div
                   key={todo.id}
-                  className={`group flex items-start gap-3 p-3 rounded-lg hover:bg-default-100 transition-colors ${
-                    todo.completed ? "opacity-50" : ""
-                  }`}
+                  className={`group flex items-start gap-3 p-3 rounded-lg hover:bg-default-100 transition-colors ${todo.completed ? "opacity-50" : ""
+                    }`}
                 >
                   <Checkbox
                     isSelected={todo.completed}
@@ -215,9 +312,8 @@ export default function Home() {
                   />
                   <div className="flex-1 min-w-0">
                     <p
-                      className={`text-sm font-medium truncate ${
-                        todo.completed ? "line-through text-default-400" : ""
-                      }`}
+                      className={`text-sm font-medium truncate ${todo.completed ? "line-through text-default-400" : ""
+                        }`}
                     >
                       {todo.title}
                     </p>
@@ -229,11 +325,10 @@ export default function Home() {
                       )}
                       {todo.priority > 1 && (
                         <span
-                          className={`text-xs px-1.5 py-0.5 rounded ${
-                            todo.priority >= 4
-                              ? "bg-danger-100 text-danger-600"
-                              : "bg-warning-100 text-warning-600"
-                          }`}
+                          className={`text-xs px-1.5 py-0.5 rounded ${todo.priority >= 4
+                            ? "bg-danger-100 text-danger-600"
+                            : "bg-warning-100 text-warning-600"
+                            }`}
                         >
                           🔥 P{todo.priority}
                         </span>
