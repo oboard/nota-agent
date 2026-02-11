@@ -47,6 +47,7 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                 case 'completeTodo':
                 case 'updateTodo':
                 case 'deleteTodo':
+                case 'saveMemory':
                     // 当创建、完成、更新或删除 todo 时，触发刷新以更新 todo 列表
                     onRefresh();
                     break;
@@ -56,7 +57,7 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
 
     return (
         <div className="flex flex-col w-full h-full gap-4">
-            <Card className="flex-1 min-h-[50vh] lg:min-h-0">
+            <Card className="flex-1 min-h-[50vh] lg:min-h-0 lg:flex-[3]">
                 <CardHeader className="flex justify-between items-center px-4 py-3">
                     <h2 className="text-xl font-bold">Chat with Nota</h2>
                 </CardHeader>
@@ -213,7 +214,7 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                         )}
                     </ScrollShadow>
                     <div className="p-4 bg-content1 border-t border-divider">
-                        <form className="flex gap-2">
+                        <form className="flex gap-2" onSubmit={e => e.preventDefault()}>
                             <Input
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
@@ -255,7 +256,7 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                 </CardBody>
             </Card>
 
-            <Card className="h-48 lg:h-2/5">
+            <Card className="h-48 lg:h-auto lg:flex-[2] min-h-0">
                 <CardHeader className="px-4 py-3">
                     <h2 className="text-lg font-bold">Recent Memories</h2>
                 </CardHeader>
