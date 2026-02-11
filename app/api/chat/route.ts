@@ -8,11 +8,13 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
+  const modelName = process.env.AI_MODEL_NAME || "gpt-3.5-turbo";
+
   const model = createOpenAICompatible({
-    name: "Kimi-K2.5",
+    name: modelName,
     baseURL: process.env.OPENAI_API_BASE || "https://api.openai.com/v1",
     apiKey: process.env.OPENAI_API_KEY,
-  })("Kimi-K2.5")
+  })(modelName)
 
   // 获取上下文信息
   const [recentMemories, currentTodos] = await Promise.all([
