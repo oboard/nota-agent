@@ -78,18 +78,9 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
     };
 
     return (
-        <Card className="w-full h-full shadow-lg flex flex-col">
-            <CardHeader className="flex justify-between items-center px-4 py-3 border-b border-divider">
-                <div className="flex items-center gap-2">
-                    <Avatar src="https://i.pravatar.cc/150?u=nota" size="sm" isBordered />
-                    <div>
-                        <h2 className="text-lg font-bold">Nota Agent</h2>
-                        <p className="text-xs text-default-400">AI Assistant</p>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardBody className="flex-1 overflow-hidden p-0 relative">
-                <ScrollShadow className="h-full p-4">
+        <Card className="w-full h-full flex flex-col shadow-none border-none lg:border-default-200">
+            <CardBody className="flex-1 overflow-hidden p-0 relative bg-background">
+                <ScrollShadow className="h-full p-2 lg:p-4">
                     {memories.length > 0 && (
                         <div className="mb-6">
                             <Accordion variant="splitted" className="px-0">
@@ -108,7 +99,14 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                                                 <span className="text-default-400 text-xs min-w-fit mt-0.5 font-mono">
                                                     {new Date(memory.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
-                                                <span className="text-default-700">{memory.content}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <Streamdown
+                                                        plugins={plugins}
+                                                        className="prose-neutral text-default-700 [&>p]:my-0"
+                                                    >
+                                                        {memory.content}
+                                                    </Streamdown>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -117,26 +115,27 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-6 pb-4">
                         {messages.map((m: any) => (
                             <div
                                 key={m.id}
-                                className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                                className={`flex gap-2 lg:gap-3 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                             >
                                 <Avatar
                                     src={m.role === "user" ? undefined : "https://i.pravatar.cc/150?u=nota"}
                                     name={m.role === "user" ? "User" : "Nota"}
                                     size="sm"
-                                    className="flex-shrink-0 mt-1"
+                                    className="flex-shrink-0 mt-1 w-8 h-8 lg:w-10 lg:h-10"
                                     showFallback
                                 />
-                                <div className={`flex flex-col max-w-[85%] ${m.role === "user" ? "items-end" : "items-start"}`}>
+                                <div className={`flex flex-col max-w-[85%] lg:max-w-[75%] ${m.role === "user" ? "items-end" : "items-start"}`}>
                                     <div
-                                        className={`rounded-2xl px-4 py-3 ${m.role === "user"
-                                            ? "bg-primary text-primary-foreground rounded-tr-none"
-                                            : "bg-content2 text-foreground rounded-tl-none"
+                                        className={`rounded-2xl px-3 py-2 lg:px-4 lg:py-3 text-sm lg:text-base ${m.role === "user"
+                                            ? "bg-default-200 text-foreground rounded-tr-none"
+                                            : "bg-default-100 text-foreground rounded-tl-none shadow-sm"
                                             }`}
                                     >
+
                                         {m.parts.map((part: any, index: number) => {
                                             switch (part.type) {
                                                 case 'text':
@@ -145,7 +144,7 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                                                             key={index}
                                                             plugins={plugins}
                                                             isAnimating={status === 'streaming' && m.role === 'assistant' && index === m.parts.length - 1}
-                                                            className={m.role === "user" ? "prose-invert" : ""}
+                                                            className={m.role === "user" ? "prose-invert" : "prose-neutral"}
                                                         >
                                                             {part.text}
                                                         </Streamdown>
@@ -209,47 +208,53 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                     </div>
                 </ScrollShadow>
             </CardBody>
-            <div className="p-4 border-t border-divider bg-background">
+            <div className="p-3 lg:p-4 border-t border-divider bg-background sticky bottom-0">
                 <div className="flex flex-col gap-2">
-                    <Textarea
-                        value={input}
-                        onValueChange={setInput}
-                        placeholder="Type a message..."
-                        minRows={5}
-                        maxRows={5}
-                        radius="lg"
-                        classNames={{
-                            input: "text-base",
-                        }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSend();
-                            }
-                        }}
-                    />
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs text-default-400">Enter to send, Shift+Enter for new line</span>
-                        <div className="flex gap-2">
+                    <div className="relative">
+                        <Textarea
+                            value={input}
+                            onValueChange={setInput}
+                            placeholder="Message Nota..."
+                            minRows={5}
+                            maxRows={5}
+                            radius="lg"
+                            classNames={{
+                                input: "text-base pr-10",
+                                inputWrapper: "pr-10 bg-default-100 hover:bg-default-200 focus-within:bg-default-100",
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend();
+                                }
+                            }}
+                        />
+                        <div className="absolute right-2 bottom-2 flex gap-1">
                             <Button
+                                isIconOnly
                                 size="sm"
                                 variant="light"
                                 color="default"
                                 onPress={handleRemember}
-                                startContent={<span className="text-lg">💾</span>}
+                                className="text-default-500 hover:text-primary"
                             >
-                                Remember
+                                <span className="text-lg">💾</span>
                             </Button>
                             <Button
+                                isIconOnly
                                 size="sm"
-                                color="primary"
+                                color={input.trim() ? "primary" : "default"}
+                                variant={input.trim() ? "solid" : "flat"}
                                 onPress={handleSend}
                                 isLoading={status === "streaming"}
-                                startContent={status !== "streaming" && <span className="text-lg">➤</span>}
+                                isDisabled={!input.trim() && status !== "streaming"}
                             >
-                                Send
+                                {status !== "streaming" && <span className="text-lg">↑</span>}
                             </Button>
                         </div>
+                    </div>
+                    <div className="hidden lg:flex justify-center">
+                        <span className="text-[10px] text-default-400">Nota can make mistakes. Check important info.</span>
                     </div>
                 </div>
             </div>
