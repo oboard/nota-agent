@@ -41,7 +41,7 @@ export function TodoCard({ todos, onRefresh }: TodoCardProps) {
     };
 
     return (
-        <Card className="w-full h-full shadow-lg">
+        <Card className="w-full h-full">
             <CardHeader className="flex justify-between items-center px-6 py-4">
                 <div>
                     <h2 className="text-2xl font-bold">

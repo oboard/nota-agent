@@ -32,7 +32,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex flex-col lg:flex-row w-full flex-1 min-h-0 gap-4 md:p-4 bg-background overflow-visible">
+    <div className="flex flex-col lg:flex-row w-full h-[calc(100vh-100px)] gap-4 md:p-4 bg-background overflow-visible">
       {/* Left Panel: Chat & Memories - 移动端全宽，桌面端 2/3 */}
       <div className="w-full lg:w-2/3 flex-shrink-0 flex flex-col overflow-visible">
         <ChatCard memories={memories} onRefresh={refreshData} />

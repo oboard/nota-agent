@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
-import { Input } from "@heroui/input";
+import { Textarea } from "@heroui/input";
 import { ScrollShadow } from "@heroui/scroll-shadow";
 import { Chip } from "@heroui/chip";
 import { Divider } from "@heroui/divider";
+import { Avatar } from "@heroui/avatar";
+import { Accordion, AccordionItem } from "@heroui/accordion";
 import { addMemory } from "@/app/actions";
 import { DefaultChatTransport, getToolName, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Streamdown } from 'streamdown';
@@ -33,6 +35,7 @@ const plugins = { code, mermaid, math, cjk };
 
 export function ChatCard({ memories, onRefresh }: ChatCardProps) {
     const [input, setInput] = useState('');
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const { messages, sendMessage, status } = useChat({
         transport: new DefaultChatTransport({
@@ -55,235 +58,201 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
         }
     });
 
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [messages, status]);
+
+    const handleSend = () => {
+        if (!input.trim()) return;
+        sendMessage({ text: input });
+        setInput('');
+    };
+
+    const handleRemember = async () => {
+        if (!input.trim()) return;
+        await addMemory(input);
+        setInput('');
+        onRefresh();
+    };
+
     return (
-        <div className="flex flex-col w-full h-full gap-4">
-            <Card className="flex-1 min-h-[50vh] lg:min-h-0 lg:flex-[3]">
-                <CardHeader className="flex justify-between items-center px-4 py-3">
-                    <h2 className="text-xl font-bold">Chat with Nota</h2>
-                </CardHeader>
-                <Divider />
-                <CardBody className="overflow-hidden flex flex-col gap-4 p-0">
-                    <ScrollShadow className="flex-1 p-4 gap-4 flex flex-col">
+        <Card className="w-full h-full shadow-lg flex flex-col">
+            <CardHeader className="flex justify-between items-center px-4 py-3 border-b border-divider">
+                <div className="flex items-center gap-2">
+                    <Avatar src="https://i.pravatar.cc/150?u=nota" size="sm" isBordered />
+                    <div>
+                        <h2 className="text-lg font-bold">Nota Agent</h2>
+                        <p className="text-xs text-default-400">AI Assistant</p>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardBody className="flex-1 overflow-hidden p-0 relative">
+                <ScrollShadow className="h-full p-4">
+                    {memories.length > 0 && (
+                        <div className="mb-6">
+                            <Accordion variant="splitted" className="px-0">
+                                <AccordionItem
+                                    key="memories"
+                                    aria-label="Recent Memories"
+                                    title={<span className="text-sm font-medium text-default-500">Recent Context ({memories.length})</span>}
+                                    className="group-[.is-splitted]:px-3 group-[.is-splitted]:bg-default-50 group-[.is-splitted]:shadow-none"
+                                >
+                                    <div className="flex flex-col gap-2 pb-2">
+                                        {memories.map((memory) => (
+                                            <div
+                                                key={memory.id}
+                                                className="p-2 rounded-md bg-background text-sm flex gap-2 border border-default-100"
+                                            >
+                                                <span className="text-default-400 text-xs min-w-fit mt-0.5 font-mono">
+                                                    {new Date(memory.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                <span className="text-default-700">{memory.content}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionItem>
+                            </Accordion>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-6">
                         {messages.map((m: any) => (
                             <div
                                 key={m.id}
-                                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"
-                                    }`}
+                                className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                             >
-                                <div
-                                    className={`max-w-[80%] rounded-lg p-3 ${m.role === "user"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-default-100"
-                                        }`}
-                                >
-                                    {m.parts.map((part: any, index: number) => {
-                                        switch (part.type) {
-                                            // render text parts as simple text:
-                                            case 'text':
-                                                return (
-                                                    <Streamdown
-                                                        key={index}
-                                                        plugins={plugins}
-                                                        isAnimating={status === 'streaming' && m.role === 'assistant' && index === m.parts.length - 1}
-                                                    >
-                                                        {part.text}
-                                                    </Streamdown>
-                                                );
-
-                                            case 'tool-call':
-                                            case 'tool-call-streaming': {
-                                                const toolCallId = part.toolCallId;
-                                                const toolName = getToolName(part);
-
-                                                return (
-                                                    <div key={toolCallId} className="mt-3 p-3 rounded-lg bg-default-50 border border-default-200">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <span className="text-lg">
-                                                                {toolName === "createTodo" ? "✅" :
-                                                                    toolName === "completeTodo" ? "✅" :
-                                                                        toolName === "updateTodo" ? "📝" :
-                                                                            toolName === "deleteTodo" ? "🗑️" : "🧠"}
-                                                            </span>
-                                                            <span className="text-sm font-medium text-default-600">
-                                                                {toolName === "createTodo" ? "创建待办事项" :
-                                                                    toolName === "completeTodo" ? "完成任务" :
-                                                                        toolName === "updateTodo" ? "更新任务" :
-                                                                            toolName === "deleteTodo" ? "删除任务" : "保存记忆"}
-                                                            </span>
-                                                            <Chip size="sm" variant="flat" color="primary">
-                                                                执行中
-                                                            </Chip>
+                                <Avatar
+                                    src={m.role === "user" ? undefined : "https://i.pravatar.cc/150?u=nota"}
+                                    name={m.role === "user" ? "User" : "Nota"}
+                                    size="sm"
+                                    className="flex-shrink-0 mt-1"
+                                    showFallback
+                                />
+                                <div className={`flex flex-col max-w-[85%] ${m.role === "user" ? "items-end" : "items-start"}`}>
+                                    <div
+                                        className={`rounded-2xl px-4 py-3 ${m.role === "user"
+                                            ? "bg-primary text-primary-foreground rounded-tr-none"
+                                            : "bg-content2 text-foreground rounded-tl-none"
+                                            }`}
+                                    >
+                                        {m.parts.map((part: any, index: number) => {
+                                            switch (part.type) {
+                                                case 'text':
+                                                    return (
+                                                        <Streamdown
+                                                            key={index}
+                                                            plugins={plugins}
+                                                            isAnimating={status === 'streaming' && m.role === 'assistant' && index === m.parts.length - 1}
+                                                            className={m.role === "user" ? "prose-invert" : ""}
+                                                        >
+                                                            {part.text}
+                                                        </Streamdown>
+                                                    );
+                                                // ... keep tool rendering logic ...
+                                                case 'tool-call':
+                                                case 'tool-call-streaming': {
+                                                    const toolCallId = part.toolCallId;
+                                                    const toolName = getToolName(part);
+                                                    return (
+                                                        <div key={toolCallId} className="mt-2 p-3 rounded-lg bg-background/50 border border-default-200/50 text-sm w-full">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span>{toolName === "createTodo" ? "✅" : "⚙️"}</span>
+                                                                <span className="font-semibold opacity-80">{toolName}</span>
+                                                                <Chip size="sm" variant="flat" color="primary" className="h-5 text-xs">Running</Chip>
+                                                            </div>
+                                                            {/* Simplified Tool Output */}
+                                                            {toolName === "createTodo" && part.output?.title && (
+                                                                <div className="font-medium">{part.output.title}</div>
+                                                            )}
+                                                            {toolName === "saveMemory" && part.args?.content && (
+                                                                <div className="italic opacity-80">"{part.args.content}"</div>
+                                                            )}
                                                         </div>
-                                                        {toolName === "createTodo" && (
-                                                            <div className="space-y-1 text-sm">
-                                                                <div>
-                                                                    <span className="text-default-500">标题：</span>
-                                                                    <span className="font-medium">{part.output?.title}</span>
-                                                                </div>
-                                                                {part.output?.description && (
-                                                                    <div>
-                                                                        <span className="text-default-500">描述：</span>
-                                                                        <span>{part.output?.description}</span>
-                                                                    </div>
-                                                                )}
-                                                                {part.output?.startDateTime && (
-                                                                    <div>
-                                                                        <span className="text-default-500">时间：</span>
-                                                                        <span>{new Date(part.output.startDateTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}</span>
-                                                                    </div>
-                                                                )}
-                                                                {part.output?.priority && part.output?.priority > 1 && (
-                                                                    <div>
-                                                                        <span className="text-default-500">优先级：</span>
-                                                                        <Chip size="sm" variant="flat" color="warning">
-                                                                            P{part.output?.priority}
-                                                                        </Chip>
-                                                                    </div>
-                                                                )}
+                                                    );
+                                                }
+                                                case 'tool-result':
+                                                    return (
+                                                        <div key={part.toolCallId} className="mt-2 p-2 rounded-lg bg-success-50/50 border border-success-100 text-xs w-full">
+                                                            <div className="flex items-center gap-2 text-success-600">
+                                                                <span>✓</span>
+                                                                <span>Completed: {part.toolName}</span>
                                                             </div>
-                                                        )}
-                                                        {toolName === "saveMemory" && (
-                                                            <div className="text-sm">
-                                                                <div>
-                                                                    <span className="text-default-500">内容：</span>
-                                                                    <span>{part.args.content}</span>
-                                                                </div>
-                                                                {part.args.type && part.args.type !== "memory" && (
-                                                                    <div>
-                                                                        <span className="text-default-500">类型：</span>
-                                                                        <Chip size="sm" variant="flat">{part.args.type}</Chip>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-
+                                                        </div>
+                                                    );
+                                                case 'tool-error':
+                                                    return (
+                                                        <div key={part.toolCallId} className="mt-2 p-2 rounded-lg bg-danger-50/50 border border-danger-100 text-xs text-danger w-full">
+                                                            Error: {part.errorText}
+                                                        </div>
+                                                    );
                                             }
-                                            case 'tool-result':
-                                                return (
-                                                    <div key={part.toolCallId} className="mt-3 p-3 rounded-lg bg-default-50 border border-default-200">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <span className="text-lg">
-                                                                {part.toolName === "createTodo" ? "✅" :
-                                                                    part.toolName === "completeTodo" ? "✅" :
-                                                                        part.toolName === "updateTodo" ? "📝" :
-                                                                            part.toolName === "deleteTodo" ? "🗑️" : "🧠"}
-                                                            </span>
-                                                            <span className="text-sm font-medium text-default-600">
-                                                                {part.toolName === "createTodo" ? "创建待办事项" :
-                                                                    part.toolName === "completeTodo" ? "完成任务" :
-                                                                        part.toolName === "updateTodo" ? "更新任务" :
-                                                                            part.toolName === "deleteTodo" ? "删除任务" : "保存记忆"}
-                                                            </span>
-                                                            <Chip size="sm" variant="flat" color="success">
-                                                                已完成
-                                                            </Chip>
-                                                        </div>
-                                                        <div className="text-sm text-default-500">
-                                                            {typeof part.result === 'string' ? part.result : JSON.stringify(part.result)}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            case 'tool-error':
-                                                return (
-                                                    <div key={part.toolCallId} className="mt-3 p-3 rounded-lg bg-danger-50 border border-danger-200">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <span className="text-lg">❌</span>
-                                                            <span className="text-sm font-medium text-danger-600">
-                                                                工具执行失败
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-sm text-danger-600">
-                                                            {part.errorText}
-                                                        </div>
-                                                    </div>
-                                                );
-                                        }
-                                    })}
-
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         ))}
                         {status === "streaming" && (
-                            <div className="flex justify-start">
-                                <div className="bg-default-100 rounded-lg p-3 animate-pulse">
-                                    Thinking...
+                            <div className="flex gap-3">
+                                <Avatar src="https://i.pravatar.cc/150?u=nota" size="sm" className="mt-1" />
+                                <div className="bg-content2 rounded-2xl rounded-tl-none px-4 py-3 flex items-center">
+                                    <div className="flex gap-1">
+                                        <div className="w-2 h-2 bg-default-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-2 h-2 bg-default-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-2 h-2 bg-default-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
                                 </div>
                             </div>
                         )}
-                    </ScrollShadow>
-                    <div className="p-4 bg-content1 border-t border-divider">
-                        <form className="flex gap-2" onSubmit={e => e.preventDefault()}>
-                            <Input
-                                value={input}
-                                onChange={e => setInput(e.target.value)}
-                                placeholder="Type your message here..."
-                                className="flex-1"
-                            />
+                        <div ref={scrollRef} />
+                    </div>
+                </ScrollShadow>
+            </CardBody>
+            <div className="p-4 border-t border-divider bg-background">
+                <div className="flex flex-col gap-2">
+                    <Textarea
+                        value={input}
+                        onValueChange={setInput}
+                        placeholder="Type a message..."
+                        minRows={5}
+                        maxRows={5}
+                        radius="lg"
+                        classNames={{
+                            input: "text-base",
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
+                    />
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs text-default-400">Enter to send, Shift+Enter for new line</span>
+                        <div className="flex gap-2">
                             <Button
-                                color="primary"
-                                variant="flat"
-                                onPress={async () => {
-                                    if (!input.trim()) return;
-                                    // 记忆模式下直接保存到今天的文件
-                                    await addMemory(input, "memory");
-                                    setInput('');
-                                    onRefresh(); // 刷新记忆列表
-                                }}
-                                className="px-3 sm:px-4"
-                                startContent="💾"
+                                size="sm"
+                                variant="light"
+                                color="default"
+                                onPress={handleRemember}
+                                startContent={<span className="text-lg">💾</span>}
                             >
                                 Remember
                             </Button>
                             <Button
-                                color="secondary"
-                                variant="flat"
-                                onPress={async () => {
-                                    if (!input.trim()) return;
-                                    // 正常发送消息
-                                    sendMessage({ text: input });
-                                    setInput('');
-                                }}
-                                isLoading={status == "streaming"}
-                                className="px-3 sm:px-4"
-                                startContent="💬"
+                                size="sm"
+                                color="primary"
+                                onPress={handleSend}
+                                isLoading={status === "streaming"}
+                                startContent={status !== "streaming" && <span className="text-lg">➤</span>}
                             >
                                 Send
                             </Button>
-                        </form>
-                    </div>
-                </CardBody>
-            </Card>
-
-            <Card className="h-48 lg:h-auto lg:flex-[2] min-h-0">
-                <CardHeader className="px-4 py-3">
-                    <h2 className="text-lg font-bold">Recent Memories</h2>
-                </CardHeader>
-                <Divider />
-                <CardBody>
-                    <ScrollShadow className="h-full">
-                        <div className="flex flex-col gap-2">
-                            {memories.map((memory) => (
-                                <div
-                                    key={memory.id}
-                                    className="p-2 rounded-md bg-default-50 text-sm flex gap-2"
-                                >
-                                    <span className="text-default-400 text-xs min-w-fit mt-0.5">
-                                        {new Date(memory.createdAt).toLocaleString()}
-                                    </span>
-                                    <span>{memory.content}</span>
-                                </div>
-                            ))}
-                            {memories.length === 0 && (
-                                <div className="text-center text-default-400 py-4">
-                                    No memories yet. Tell me something!
-                                </div>
-                            )}
                         </div>
-                    </ScrollShadow>
-                </CardBody>
-            </Card>
-        </div>
+                    </div>
+                </div>
+            </div>
+        </Card>
     );
 }

@@ -77,8 +77,8 @@ export async function deleteTodo(id: string) {
 }
 
 // Memory Actions
-export async function addMemory(content: string, type: string = "memory") {
-  await storage.addMemory(content, type);
+export async function addMemory(content: string) {
+  await storage.addMemory(content);
   revalidatePath("/");
 }
 

@@ -1,5 +1,10 @@
 import { app, BrowserWindow } from 'electron'
 import * as path from 'path'
+import { checkAndConsolidateMemories } from './memory-manager.ts'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -22,6 +27,14 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   createWindow()
+
+  // 启动时立即检查一次
+  checkAndConsolidateMemories().catch(console.error)
+
+  // 每分钟检查一次是否需要整理记忆
+  setInterval(() => {
+    checkAndConsolidateMemories().catch(console.error)
+  }, 60 * 1000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

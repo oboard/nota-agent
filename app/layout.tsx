@@ -47,17 +47,6 @@ export default function RootLayout({
             <main className="container mx-auto max-w-7xl lg:px-6 flex-grow overflow-hidden flex flex-col min-h-0">
               {children}
             </main>
-            <footer className="w-full flex items-center justify-center py-3 flex-shrink-0">
-              <Link
-                isExternal
-                className="flex items-center gap-1 text-current"
-                href="https://www.oboard.fun/"
-                title="oboard homepage"
-              >
-                {/* <span className="text-default-600">Powered by</span> */}
-                <p className="text-primary">@oboard</p>
-              </Link>
-            </footer>
           </div>
         </Providers>
       </body>
