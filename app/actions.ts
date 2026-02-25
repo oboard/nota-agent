@@ -1,6 +1,7 @@
 "use server";
 
 import { storage } from "@/lib/storage";
+import { chatStorage } from "@/lib/chat-storage";
 import { revalidatePath } from "next/cache";
 
 // Todo Actions
@@ -102,6 +103,43 @@ export async function saveConversation(
 export async function getConversations(cursor?: number, limit: number = 20) {
   // 返回空数组，因为对话记录不持久化
   return [];
+}
+
+// Chat Actions
+export async function createChat(): Promise<string> {
+  const chatId = await chatStorage.createChat();
+  revalidatePath("/");
+  return chatId;
+}
+
+export async function loadChat(chatId: string) {
+  const messages = await chatStorage.loadChat(chatId);
+  return messages;
+}
+
+export async function saveChat(chatId: string, messages: any[]) {
+  await chatStorage.saveChat(chatId, messages);
+  revalidatePath("/");
+}
+
+export async function getRecentChats(limit: number = 5) {
+  const chats = await chatStorage.getRecentChats(limit);
+  return chats;
+}
+
+export async function loadMoreMessages(chatId: string, beforeMessageId?: string, limit: number = 20) {
+  const messages = await chatStorage.loadMoreMessages(chatId, beforeMessageId, limit);
+  return messages;
+}
+
+export async function getAvailableDates() {
+  const dates = await chatStorage.getAvailableDates();
+  return dates;
+}
+
+export async function scrollToDate(chatId: string, targetDate: string) {
+  const result = await chatStorage.scrollToDate(chatId, targetDate);
+  return result;
 }
 
 // Link Metadata Actions

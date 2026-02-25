@@ -1,12 +1,65 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText, tool, generateObject, convertToModelMessages, generateText, type UIMessage } from "ai";
 import { z } from "zod";
-import { createTodo, updateTodo, toggleTodo, deleteTodo, addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata } from "@/app/actions";
+import { createTodo, updateTodo, toggleTodo, deleteTodo, addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
 import { urlMetadataExtractor } from "@/lib/url-metadata";
 
 export const maxDuration = 30;
 
+/**
+ * 清理记忆内容，移除HTML标签、XML参数等格式化标记
+ */
+function cleanMemoryContent(content: string): string {
+  if (!content) return '';
+
+  // 移除HTML/XML标签
+  let cleaned = content
+    .replace(/<[^>]*>/g, '')                    // 移除HTML/XML标签
+    .replace(/&[a-zA-Z]+;/g, '')                // 移除HTML实体
+    .replace(/<\/?parameter[^>]*>/gi, '')      // 移除parameter标签
+    .replace(/<\/?[^>]+>/g, '')                 // 移除任何其他标签
+    .trim();
+
+  // 移除特殊字符和格式化符号
+  cleaned = cleaned
+    .replace(/^[:：，。！？\s]+/, '')            // 移除开头的标点符号
+    .replace(/[:：，。！？\s]+$/, '')            // 移除结尾的标点符号
+    .replace(/\s+/g, ' ')                       // 规范化空格
+    .trim();
+
+  return cleaned;
+}
+
+/**
+ * 验证内容是否有实质信息，避免保存空或无效内容
+ */
+function isValidMemoryContent(content: string): boolean {
+  if (!content || content.length < 3) return false;
+
+  // 先清理内容
+  const cleaned = cleanMemoryContent(content);
+
+  // 去除空白字符和常见标点后再检查
+  const pureText = cleaned
+    .replace(/[：:，。！？\s]/g, '')
+    .replace(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g, '')
+    .trim();
+
+  // 检查是否为空、只有标点、或特定无效模式
+  const invalidPatterns = [
+    /^[:：，。！？\s]*$/,           // 只有标点符号
+    /^\[链接\]$/,                   // 只有链接占位符
+    /^用户说: \s*$/,               // 只有前缀没有内容
+    /^用户说: \[链接\]$/,          // 只有前缀和链接占位符
+    /^\d+$/,                        // 只有数字
+    /^[a-zA-Z]+$/                   // 只有字母，没有实质内容
+  ];
+
+  return pureText.length >= 2 && !invalidPatterns.some(pattern => pattern.test(content));
+}
+
 export async function POST(req: Request) {
+  const chatId = req.headers.get('X-Chat-ID');
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const modelName = process.env.AI_MODEL_NAME || "gpt-3.5-turbo";
@@ -24,31 +77,32 @@ export async function POST(req: Request) {
   ]);
 
   const systemPrompt = `你是一个智能助手 NotaAgent。
-你的核心目标是帮助用户整理任务和回答问题。
-
-当前已有记忆：
-${recentMemories.map(m => `- [${m.createdAt}] ${m.content}`).join("\n")}
-
-当前待办事项：
-${currentTodos}
-
-你的职责：
-1. 回答用户的问题或与用户对话。
-2. 智能管理待办事项：
-   - 如果用户提到具体时间（几点、小时、分钟、时间段），使用 createTodo 工具，必须设置 startDateTime 和 endDateTime
-   - 如果用户只说要做的事情但没有具体时间，使用 createSimpleTodo 工具
-   - 如果用户表示完成了某个任务，使用 completeTodo 工具直接标记为完成
-   - 如果用户说要删除某个任务，使用 deleteTodo 工具删除
-   - 如果用户要修改任务信息，使用 updateTodo 工具更新
-3. 始终保持友善、简洁。
-4. 今天的日期是：${new Date().toLocaleDateString()}。
-5. 当前UTC时间是：${new Date().toISOString()}（注意：这是UTC时间，比北京时间慢8小时）。
-
-重要规则：
-- 当用户说"我完成了"、"做好了"等表达时，智能识别他们指的是哪个任务，并直接使用 completeTodo 工具标记为完成
-- 不要询问用户任务ID，根据当前任务列表智能匹配最相关的任务
-- 工具选择：有时间要求用 createTodo，无时间要求用 createSimpleTodo
-`;
+  你的核心目标是帮助用户整理任务和回答问题。
+  
+  当前已有记忆：
+  ${recentMemories.map(m => `- [${m.createdAt}] ${m.content}`).join("\n")}
+  
+  当前待办事项：
+  ${currentTodos}
+  
+  你的职责：
+  1. 回答用户的问题或与用户对话。
+  2. 智能管理待办事项：
+     - 如果用户提到具体时间（几点、小时、分钟、时间段），使用 createTodo 工具，必须设置 startDateTime 和 endDateTime
+     - 如果用户只说要做的事情但没有具体时间，使用 createSimpleTodo 工具
+     - 如果用户表示完成了某个任务，使用 completeTodo 工具直接标记为完成
+     - 如果用户说要删除某个任务，使用 deleteTodo 工具删除
+     - 如果用户要修改任务信息，使用 updateTodo 工具更新
+  3. 始终保持友善、简洁。
+  4. 今天的日期是：${new Date().toLocaleDateString()}。
+  5. 当前UTC时间是：${new Date().toISOString()}（注意：这是UTC时间，比北京时间慢8小时）。
+  
+  重要规则：
+  - 当用户说"我完成了"、"做好了"等表达时，智能识别他们指的是哪个任务，并直接使用 completeTodo 工具标记为完成
+  - 不要询问用户任务ID，根据当前任务列表智能匹配最相关的任务
+  - 工具选择：有时间要求用 createTodo，无时间要求用 createSimpleTodo
+  - 提取记忆时，请确保提取的内容是简洁、有意义的文本，不要包含HTML标签、XML参数或其他格式化标记
+  `;
 
   const result = streamText({
     model,
@@ -198,6 +252,13 @@ ${currentTodos}
             
             如果包含有用信息，请调用 saveMemory 工具保存。
             如果是简单的问候、询问 factual 问题（如"天气如何"）或单纯的任务指令（如"创建一个任务"），则不要保存。
+            
+            重要：提取的记忆内容必须是简洁、有意义的文本，不能包含：
+            - HTML标签
+            - XML标签或参数
+            - 格式化标记如 <parameter>、> 等
+            - 代码块或特殊符号
+            请确保提取的内容是纯文本，易于人类阅读。
             `,
         });
 
@@ -208,10 +269,14 @@ ${currentTodos}
             .replace(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g, '[链接]')
             .trim();
 
-          // 只有当内容有意义时才保存（不太短）
-          if (simplifiedContent.length > 5) {
-            await addMemory(`用户说: ${simplifiedContent}`);
+          // 使用更全面的内容验证，先清理再验证
+          const cleanedContent = cleanMemoryContent(simplifiedContent);
+          const memoryText = `用户说: ${cleanedContent}`;
+          if (isValidMemoryContent(memoryText)) {
+            await addMemory(memoryText);
             console.log("没有提取到记忆，已保存用户原话作为记忆");
+          } else {
+            console.log("用户输入内容过短或无实质内容，跳过记忆保存");
           }
         }
       } catch (error) {
@@ -222,12 +287,32 @@ ${currentTodos}
             .replace(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g, '[链接]')
             .trim();
 
-          if (simplifiedContent.length > 5) {
-            await addMemory(`用户说: ${simplifiedContent}`);
+          // 使用更全面的内容验证，先清理再验证
+          const cleanedContent = cleanMemoryContent(simplifiedContent);
+          const memoryText = `用户说: ${cleanedContent}`;
+          if (isValidMemoryContent(memoryText)) {
+            await addMemory(memoryText);
             console.log("记忆提取失败，已保存用户原话作为记忆");
+          } else {
+            console.log("用户输入内容过短或无实质内容，跳过记忆保存");
           }
         } catch (backupError) {
           console.error("Backup memory save also failed:", backupError);
+        }
+      }
+
+      // 保存聊天消息（如果提供了chatId）
+      if (chatId) {
+        try {
+          // 确保所有消息都有时间戳
+          const messagesWithTimestamps = messages.map(msg => ({
+            ...msg,
+            createdAt: msg.createdAt || new Date().toISOString()
+          }));
+          await saveChat(chatId, messagesWithTimestamps);
+          console.log(`聊天消息已保存到聊天 ${chatId}`);
+        } catch (error) {
+          console.error("Failed to save chat messages:", error);
         }
       }
 

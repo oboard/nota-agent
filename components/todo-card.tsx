@@ -164,7 +164,7 @@ export function TodoCard({ todos, onRefresh, onMobileExpandChange }: TodoCardPro
             </Card>
 
             {/* Mobile View */}
-            <div className="lg:hidden w-full transition-all duration-300 px-2 pt-2">
+            <div className="lg:hidden w-full transition-all duration-300 pt-2">
                 <Accordion
                     variant="splitted"
                     onSelectionChange={(keys) => {

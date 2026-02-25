@@ -10,7 +10,7 @@ import { Chip } from "@heroui/chip";
 import { Divider } from "@heroui/divider";
 import { Avatar } from "@heroui/avatar";
 import { Accordion, AccordionItem } from "@heroui/accordion";
-import { addMemory } from "@/app/actions";
+import { addMemory, loadChat, createChat } from "@/app/actions";
 import { DefaultChatTransport, getToolName, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
@@ -29,11 +29,14 @@ interface Memory {
 interface ChatCardProps {
     memories: Memory[];
     onRefresh: () => void;
+    chatId?: string;
+    initialMessages?: any[];
+    isLoading?: boolean;
 }
 
 const plugins = { code, mermaid, math, cjk };
 
-export function ChatCard({ memories, onRefresh }: ChatCardProps) {
+export function ChatCard({ memories, onRefresh, chatId, initialMessages = [], isLoading }: ChatCardProps) {
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -46,9 +49,15 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
         return () => clearInterval(interval);
     }, [onRefresh]);
 
-    const { messages, sendMessage, status } = useChat({
+    // 始终调用 useChat，但在条件不满足时传入空配置
+    const { messages: chatMessages, sendMessage, status } = useChat({
+        id: chatId || 'temp', // 使用临时ID避免空值
+        messages: initialMessages, // 只在准备好时使用消息
         transport: new DefaultChatTransport({
             api: '/api/chat',
+            headers: {
+                'X-Chat-ID': chatId || ''
+            }
         }),
         sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
         onToolCall: async (data) => {
@@ -77,10 +86,11 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
         if (scrollRef.current) {
             scrollRef.current.scrollIntoView({ behavior: "smooth" });
         }
-    }, [messages, status]);
+    }, [chatMessages, status]);
 
     const handleSend = () => {
-        if (!input.trim()) return;
+        if (!input.trim() || !chatId) return;
+
         sendMessage({ text: input });
         setInput('');
         // 发送消息后立刷新数据，确保URL链接和记忆及时显示
@@ -98,6 +108,19 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
             onRefresh();
         }, 300); // 延迟300ms确保数据已保存
     };
+
+    // 显示加载状态
+    if (isLoading) {
+        return (
+            <Card className="w-full h-full flex flex-col shadow-none border-none lg:border-default-200">
+                <CardBody className="flex-1 overflow-hidden p-0 relative bg-background">
+                    <div className="h-full flex items-center justify-center">
+                        <div className="text-default-500">正在加载今天的会话...</div>
+                    </div>
+                </CardBody>
+            </Card>
+        );
+    }
 
     return (
         <Card className="w-full h-full flex flex-col shadow-none border-none lg:border-default-200">
@@ -138,7 +161,7 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                     )}
 
                     <div className="flex flex-col gap-6 pb-4">
-                        {messages.map((m: any) => (
+                        {chatMessages.map((m: any) => (
                             <div
                                 key={m.id}
                                 className={`flex gap-2 lg:gap-3 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
@@ -158,7 +181,7 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                                             }`}
                                     >
 
-                                        {m.parts.map((part: any, index: number) => {
+                                        {m.parts?.map((part: any, index: number) => {
                                             switch (part.type) {
                                                 case 'text':
                                                     return (
@@ -210,6 +233,15 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                                                     );
                                             }
                                         })}
+                                        {/* 如果没有 parts，显示旧格式的内容 */}
+                                        {!m.parts && m.content && (
+                                            <Streamdown
+                                                plugins={plugins}
+                                                className={m.role === "user" ? "prose-invert" : "prose-neutral"}
+                                            >
+                                                {m.content}
+                                            </Streamdown>
+                                        )}
                                     </div>
                                 </div>
                             </div>
