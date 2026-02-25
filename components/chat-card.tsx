@@ -37,6 +37,15 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // 添加定时刷新机制
+    useEffect(() => {
+        const interval = setInterval(() => {
+            onRefresh();
+        }, 5000); // 每5秒刷新一次
+
+        return () => clearInterval(interval);
+    }, [onRefresh]);
+
     const { messages, sendMessage, status } = useChat({
         transport: new DefaultChatTransport({
             api: '/api/chat',
@@ -55,6 +64,12 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
                     onRefresh();
                     break;
             }
+        },
+        onFinish: async () => {
+            // 当对话完成时刷新数据，确保Recent Context及时更新
+            setTimeout(() => {
+                onRefresh();
+            }, 500); // 延迟500ms确保数据已保存
         }
     });
 
@@ -68,13 +83,20 @@ export function ChatCard({ memories, onRefresh }: ChatCardProps) {
         if (!input.trim()) return;
         sendMessage({ text: input });
         setInput('');
+        // 发送消息后立刷新数据，确保URL链接和记忆及时显示
+        setTimeout(() => {
+            onRefresh();
+        }, 1000); // 延迟1秒确保后端处理完成
     };
 
     const handleRemember = async () => {
         if (!input.trim()) return;
         await addMemory(input);
         setInput('');
-        onRefresh();
+        // 立即刷新数据，确保记忆及时显示
+        setTimeout(() => {
+            onRefresh();
+        }, 300); // 延迟300ms确保数据已保存
     };
 
     return (

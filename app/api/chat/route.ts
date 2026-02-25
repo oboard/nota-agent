@@ -1,7 +1,8 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText, tool, generateObject, convertToModelMessages, generateText, type UIMessage } from "ai";
 import { z } from "zod";
-import { createTodo, updateTodo, toggleTodo, deleteTodo, addMemory, getRecentMemories, getTodos, saveConversation } from "@/app/actions";
+import { createTodo, updateTodo, toggleTodo, deleteTodo, addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata } from "@/app/actions";
+import { urlMetadataExtractor } from "@/lib/url-metadata";
 
 export const maxDuration = 30;
 
@@ -136,21 +137,47 @@ ${currentTodos}
     },
     onFinish: async ({ text }) => {
       // 保存对话记录
+
+      const lastUserMessage = messages[messages.length - 1];
+      if (lastUserMessage.role !== 'user') return;
+
+      // Extract text from parts
+      const userContent = lastUserMessage.parts
+        .filter(part => part.type === 'text')
+        .map(part => part.text)
+        .join('');
+
+      // 保存到数据库
+      await saveConversation(userContent, text);
+
+      // 提取并保存URL元数据
       try {
-        const lastUserMessage = messages[messages.length - 1];
-        if (lastUserMessage.role !== 'user') return;
+        const urlMetadataList = await urlMetadataExtractor.extractAndFetchMetadata(userContent);
+        if (urlMetadataList.length > 0) {
+          // 保存所有提取到的链接元数据
+          await Promise.all(
+            urlMetadataList.map(metadata =>
+              saveLinkMetadata({
+                url: metadata.url,
+                title: metadata.title,
+                description: metadata.description,
+                image: metadata.image,
+                siteName: metadata.siteName,
+                type: metadata.type,
+                favicon: metadata.favicon,
+                extractedAt: metadata.extractedAt,
+              })
+            )
+          );
+          console.log(`已保存 ${urlMetadataList.length} 个链接的元数据`);
+        }
+      } catch (error) {
+        console.error("Failed to extract URL metadata:", error);
+      }
 
-        // Extract text from parts
-        const userContent = lastUserMessage.parts
-          .filter(part => part.type === 'text')
-          .map(part => part.text)
-          .join('');
-
-        // 保存到数据库
-        await saveConversation(userContent, text);
-
-        // 提取记忆
-        await generateText({
+      // 提取记忆
+      try {
+        const memoryResult = await generateText({
           model,
           tools: {
             saveMemory: tool({
@@ -165,18 +192,46 @@ ${currentTodos}
             }),
           },
           prompt: `分析用户的最新输入和你的回复，判断是否包含值得长期记忆的关键信息（如事实、用户偏好、重要日期、想法等）。
-          
-          用户输入: ${userContent}
-          你的回复: ${text}
-          
-          如果包含有用信息，请调用 saveMemory 工具保存。
-          如果是简单的问候、询问 factual 问题（如"天气如何"）或单纯的任务指令（如"创建一个任务"），则不要保存。
-          `,
+            
+            用户输入: ${userContent}
+            你的回复: ${text}
+            
+            如果包含有用信息，请调用 saveMemory 工具保存。
+            如果是简单的问候、询问 factual 问题（如"天气如何"）或单纯的任务指令（如"创建一个任务"），则不要保存。
+            `,
         });
+
+        // 如果没有保存任何记忆，则直接将用户输入保存为记忆
+        if (!memoryResult.toolCalls || memoryResult.toolCalls.length === 0) {
+          // 简化用户输入作为记忆，去除URL链接和多余空格
+          const simplifiedContent = userContent
+            .replace(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g, '[链接]')
+            .trim();
+
+          // 只有当内容有意义时才保存（不太短）
+          if (simplifiedContent.length > 5) {
+            await addMemory(`用户说: ${simplifiedContent}`);
+            console.log("没有提取到记忆，已保存用户原话作为记忆");
+          }
+        }
       } catch (error) {
         console.error("Failed to extract memory:", error);
+        // 如果记忆提取失败，也尝试保存用户输入
+        try {
+          const simplifiedContent = userContent
+            .replace(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g, '[链接]')
+            .trim();
+
+          if (simplifiedContent.length > 5) {
+            await addMemory(`用户说: ${simplifiedContent}`);
+            console.log("记忆提取失败，已保存用户原话作为记忆");
+          }
+        } catch (backupError) {
+          console.error("Backup memory save also failed:", backupError);
+        }
       }
-    },
+
+    }
   });
 
   return result.toUIMessageStreamResponse();

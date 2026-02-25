@@ -103,3 +103,27 @@ export async function getConversations(cursor?: number, limit: number = 20) {
   // 返回空数组，因为对话记录不持久化
   return [];
 }
+
+// Link Metadata Actions
+export async function saveLinkMetadata(data: {
+  url: string;
+  title: string;
+  description?: string;
+  image?: string;
+  siteName?: string;
+  type?: string;
+  favicon?: string;
+  extractedAt: string;
+}) {
+  const metadata = await storage.saveLinkMetadata(data);
+  revalidatePath("/");
+  return metadata;
+}
+
+export async function getLinkMetadata() {
+  return await storage.getLinkMetadata();
+}
+
+export async function getRecentLinkMetadata(limit: number = 20) {
+  return await storage.getRecentLinkMetadata(limit);
+}

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { CronExpressionParser } from 'cron-parser';
+import { UrlMetadata } from './url-metadata';
 
 export interface MemoryData {
     id: string;
@@ -21,6 +22,19 @@ export interface TodoData {
     updatedAt: Date;
     cron?: string;
     lastGenerated?: string;
+}
+
+export interface LinkMetadata {
+    id: string;
+    url: string;
+    title: string;
+    description?: string;
+    image?: string;
+    siteName?: string;
+    type?: string;
+    favicon?: string;
+    extractedAt: string;
+    createdAt: Date;
 }
 
 export class FileStorage {
@@ -97,7 +111,10 @@ export class FileStorage {
             console.error('Error getting memories:', error);
         }
 
-        return memories.slice(0, limit);
+        // 按时间戳排序，最新的在前面
+        return memories
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, limit);
     }
 
     async getRecentMemories(limit: number = 20): Promise<MemoryData[]> {
@@ -254,6 +271,61 @@ export class FileStorage {
         const filePath = path.join(this.dataDir, 'todos.json');
         // 将 Date 对象转换为 ISO 字符串以便 JSON 序列化
         await fs.writeFile(filePath, JSON.stringify(todos, null, 2));
+    }
+
+    async saveLinkMetadata(metadata: Omit<LinkMetadata, 'id' | 'createdAt'>): Promise<LinkMetadata> {
+        const links = await this.getLinkMetadata();
+        const newLink: LinkMetadata = {
+            ...metadata,
+            id: Date.now().toString(),
+            createdAt: new Date(),
+        };
+
+        links.push(newLink);
+        await this.saveLinkMetadataList(links);
+
+        return newLink;
+    }
+
+    async getLinkMetadata(): Promise<LinkMetadata[]> {
+        try {
+            const filePath = path.join(this.dataDir, 'links.json');
+            let content = '';
+            try {
+                content = await fs.readFile(filePath, 'utf-8');
+            } catch (err: any) {
+                if (err.code === 'ENOENT') {
+                    return [];
+                }
+                throw err;
+            }
+
+            let links: LinkMetadata[] = JSON.parse(content);
+
+            // 将 ISO 字符串转换回 Date 对象
+            links = links.map(link => ({
+                ...link,
+                createdAt: new Date(link.createdAt),
+            }));
+
+            return links;
+        } catch (error) {
+            console.error('Error reading link metadata:', error);
+            return [];
+        }
+    }
+
+    async saveLinkMetadataList(links: LinkMetadata[]): Promise<void> {
+        const filePath = path.join(this.dataDir, 'links.json');
+        // 将 Date 对象转换为 ISO 字符串以便 JSON 序列化
+        await fs.writeFile(filePath, JSON.stringify(links, null, 2));
+    }
+
+    async getRecentLinkMetadata(limit: number = 20): Promise<LinkMetadata[]> {
+        const links = await this.getLinkMetadata();
+        return links
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .slice(0, limit);
     }
 }
 
