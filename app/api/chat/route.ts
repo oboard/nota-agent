@@ -325,15 +325,12 @@ export async function POST(req: Request) {
         }
       }
 
-      // 保存聊天消息（如果提供了chatId）
-      if (chatId) {
-        try {
-          // 消息已经通过 ChatStorage 的 normalizeMessages 方法处理，不需要额外处理时间戳
-          await saveChat(chatId, messages);
-          console.log(`聊天消息已保存到聊天 ${chatId}`);
-        } catch (error) {
-          console.error("Failed to save chat messages:", error);
-        }
+      // 保存聊天消息（全局唯一会话）
+      try {
+        await saveChat(messages);
+        console.log(`聊天消息已保存`);
+      } catch (error) {
+        console.error("Failed to save chat messages:", error);
       }
 
     }

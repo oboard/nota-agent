@@ -1,8 +1,10 @@
 "use server";
 
 import { storage } from "@/lib/storage";
-import { chatStorage } from "@/lib/chat-storage";
+import { ChatStorage, ChatData } from "@/lib/chat-storage";
 import { revalidatePath } from "next/cache";
+import { readFile, readdir } from 'fs/promises';
+import path from 'path';
 
 // Todo Actions
 export async function getTodos() {
@@ -107,39 +109,127 @@ export async function getConversations(cursor?: number, limit: number = 20) {
 
 // Chat Actions
 export async function createChat(): Promise<string> {
+  const chatStorage = new ChatStorage();
   const chatId = await chatStorage.createChat();
   revalidatePath("/");
   return chatId;
 }
 
-export async function loadChat(chatId: string) {
-  const messages = await chatStorage.loadChat(chatId);
-  return messages;
+export async function loadChat(page: number = 1, pageSize: number = 20) {
+  const chatStorage = new ChatStorage();
+  return chatStorage.loadChat(page, pageSize);
 }
 
-export async function saveChat(chatId: string, messages: any[]) {
-  await chatStorage.saveChat(chatId, messages);
+export async function saveChat(messages: any[]) {
+  const chatStorage = new ChatStorage();
+  // 采用全局唯一会话存储，不再区分 chatId
+  await chatStorage.saveChat('global', messages);
   revalidatePath("/");
 }
 
 export async function getRecentChats(limit: number = 5) {
-  const chats = await chatStorage.getRecentChats(limit);
-  return chats;
+  const chatStorage = new ChatStorage();
+  const dataDir = 'data/chats';
+  const files = await readdir(dataDir);
+  const jsonFiles = files.filter(file => file.match(/^\d{4}-\d{2}-\d{2}\.json$/));
+  const allChats: ChatData[] = [];
+
+  for (const file of jsonFiles) {
+    const filePath = path.join(dataDir, file);
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      const chats: ChatData[] = JSON.parse(content);
+      allChats.push(...chats);
+    } catch (error) {
+      console.error(`Failed to read chat file ${file}:`, error);
+    }
+  }
+
+  // 按更新时间排序并返回最近的聊天
+  return allChats
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, limit);
 }
 
-export async function loadMoreMessages(chatId: string, beforeMessageId?: string, limit: number = 20) {
-  const messages = await chatStorage.loadMoreMessages(chatId, beforeMessageId, limit);
-  return messages;
+export async function loadMoreMessages(beforeMessageId?: string, limit: number = 20) {
+  const chatStorage = new ChatStorage();
+  // 加载所有消息并过滤
+  const allMessages = await chatStorage.loadChat(1, 1000); // 获取足够多的消息
+
+  if (beforeMessageId) {
+    const beforeIndex = allMessages.findIndex(msg => msg.id === beforeMessageId);
+    if (beforeIndex >= 0) {
+      return allMessages.slice(0, beforeIndex).slice(-limit);
+    }
+  }
+
+  return allMessages.slice(-limit);
 }
 
 export async function getAvailableDates() {
-  const dates = await chatStorage.getAvailableDates();
-  return dates;
+  const dataDir = 'data/chats';
+  let files: string[] = [];
+  try {
+    files = await readdir(dataDir);
+  } catch {
+    files = [];
+  }
+
+  // 支持两种命名：YYYY-MM-DD.json 和 chat-YYYY-MM-DD.json
+  const fileEntries = files.filter(file => file.match(/^(chat-)?\d{4}-\d{2}-\d{2}\.json$/));
+
+  const items: { date: string; fileName: string; chatCount: number }[] = [];
+  for (const file of fileEntries) {
+    const match = file.match(/^(?:chat-)?(\d{4})-(\d{2})-(\d{2})\.json$/);
+    if (match) {
+      const dateStr = `${match[1]}-${match[2]}-${match[3]}`;
+      let chatCount = 0;
+      try {
+        const content = await readFile(path.join(dataDir, file), 'utf-8');
+        const chats: ChatData[] = JSON.parse(content);
+        chatCount = chats.reduce((sum, c) => sum + (c.messages?.length || 0), 0);
+      } catch {
+        // 忽略读取失败，保留日期项
+      }
+      items.push({ date: dateStr, fileName: file, chatCount });
+    }
+  }
+
+  // 确保今天在最上方，即使文件尚未生成
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  if (!items.some(i => i.date === todayStr)) {
+    items.unshift({ date: todayStr, fileName: `${todayStr}.json`, chatCount: 0 });
+  }
+
+  // 按日期降序（今天在上）
+  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return items;
 }
 
-export async function scrollToDate(chatId: string, targetDate: string) {
-  const result = await chatStorage.scrollToDate(chatId, targetDate);
-  return result;
+export async function scrollToDate(targetDate: string) {
+  const dataDir = 'data/chats';
+  const fileName = `${targetDate}.json`;
+  const filePath = path.join(dataDir, fileName);
+
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    const chats: ChatData[] = JSON.parse(content);
+    const messages = chats.flatMap(c => c.messages || []);
+
+    return {
+      messages,
+      hasMore: false
+    };
+  } catch (error) {
+    console.error(`Failed to read chat file for date ${targetDate}:`, error);
+  }
+
+  return {
+    messages: [],
+    hasMore: false
+  };
 }
 
 // Link Metadata Actions

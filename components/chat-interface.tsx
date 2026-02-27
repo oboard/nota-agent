@@ -9,7 +9,7 @@ import { Chip } from "@heroui/chip";
 import { Avatar } from "@heroui/avatar";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { addMemory, getTodos } from "@/app/actions";
-import { DefaultChatTransport, getToolName, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { DefaultChatTransport, getToolName, lastAssistantMessageIsCompleteWithToolCalls, generateId } from "ai";
 import { Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
 import { mermaid } from '@streamdown/mermaid';
@@ -57,15 +57,11 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [chatInfo, setChatInfo] = useState<string>(''); // 显示聊天信息
   const { isDatePanelExpanded: isDatePanelExpanded, toggleDatePanel } = useDatePanelStore();
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
-      headers: {
-        'X-Chat-ID': chatId
-      }
     }),
     messages: initialMessages,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
@@ -101,18 +97,10 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
     [messages]
   );
 
-  // 显示聊天信息
-  useEffect(() => {
-    if (chatId && initialMessages.length > 0) {
-      setChatInfo(`当前会话: ${chatId} (${initialMessages.length} 条消息)`);
-    } else if (chatId) {
-      setChatInfo(`当前会话: ${chatId} (新会话)`);
-    }
-  }, [chatId, initialMessages]);
 
   const saveChatMessages = async () => {
     try {
-      await saveChat(chatId, messages);
+      await saveChat(messages);
       console.log('聊天消息已保存');
     } catch (error) {
       console.error('保存聊天消息失败:', error);
@@ -126,15 +114,28 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
     try {
       // 获取最早的消息ID
       const firstMessage = messages[0];
-      const moreMessages = await loadMoreMessages(chatId, firstMessage.id, 20);
+      const moreMessages = await loadMoreMessages(firstMessage.id, 20);
 
       if (moreMessages.length === 0) {
         setHasMoreMessages(false);
       } else {
         // 将历史消息添加到当前消息列表前面
+        // 由于useChat的限制，我们通过重新设置初始消息来实现
         const updatedMessages = [...moreMessages, ...messages];
-        // 这里需要更新useChat的消息状态，但useChat不提供直接修改方法
-        // 所以我们需要在保存时处理，或者在组件初始化时处理
+
+        // 创建新的消息数组，保持useChat的引用
+        const newMessages = updatedMessages.map(msg => ({
+          ...msg,
+          id: msg.id || generateId(), // 确保有ID
+          createdAt: (msg as any).createdAt || new Date().toISOString()
+        }));
+
+        // 临时存储到localStorage，然后刷新页面
+        localStorage.setItem(`chat_${chatId}_messages`, JSON.stringify(newMessages));
+
+        // 重新加载页面以应用新的消息列表
+        window.location.reload();
+
         console.log(`加载了 ${moreMessages.length} 条历史消息`);
       }
     } catch (error) {
@@ -180,10 +181,10 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
     setSelectedDate(date);
 
     try {
-      const result = await scrollToDate(chatId, date);
-      if (result.foundDate && result.messages.length > 0) {
-        // 滚动到对应日期的消息
-        scrollToMessages(result.messages);
+      const result = await scrollToDate(date);
+      if (result.messages.length > 0) {
+        // 日期选择只滚动到对应位置，不替换消息列表
+        scrollToDateMessage(date, result.messages);
         console.log(`已跳转到 ${date} 的聊天记录`);
       } else {
         console.log(`${date} 没有找到聊天记录`);
@@ -194,15 +195,70 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
   };
 
   const scrollToMessages = (targetMessages: any[]) => {
-    // 这里可以实现滚动到指定消息的逻辑
-    // 由于useChat的限制，我们可以通过重新加载来实现
+    // 滚动到指定日期的消息
     console.log('滚动到消息:', targetMessages.length, '条');
 
-    // 临时方案：显示提示信息
+    // 查找目标消息在完整消息列表中的位置
+    if (targetMessages.length > 0 && messages.length > 0) {
+      const firstTargetMessage = targetMessages[0];
+      const targetIndex = messages.findIndex(msg => msg.id === firstTargetMessage.id);
+
+      if (targetIndex !== -1) {
+        // 滚动到对应位置
+        const messageElements = document.querySelectorAll('[data-message-id]');
+        if (messageElements[targetIndex]) {
+          messageElements[targetIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+      }
+    }
+
+    // 备用滚动方案
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
+
+  const scrollToDateMessage = async (targetDate: string, targetMessages: any[]) => {
+    console.log(`滚动到日期 ${targetDate} 的消息`);
+
+    if (targetMessages.length === 0) return;
+
+    // 检查目标消息是否已经在当前消息列表中
+    const firstTargetMessage = targetMessages[0];
+    const targetIndex = messages.findIndex(msg => msg.id === firstTargetMessage.id);
+
+    if (targetIndex !== -1) {
+      // 消息已在列表中，直接滚动
+      const messageElements = document.querySelectorAll('[data-message-id]');
+      if (messageElements[targetIndex]) {
+        messageElements[targetIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+    } else {
+      // 消息不在当前列表中，需要先加载对应日期的消息
+      console.log(`目标日期 ${targetDate} 的消息不在当前列表中，需要加载`);
+
+      // 临时存储目标日期
+      sessionStorage.setItem(`scroll_target_global`, targetDate);
+
+      // 重新加载页面，这次会加载更多历史消息
+      window.location.reload();
+    }
+  };
+
+  // 检查是否需要滚动到特定日期
+  useEffect(() => {
+    const scrollTarget = sessionStorage.getItem(`scroll_target_global`);
+    if (scrollTarget) {
+      sessionStorage.removeItem(`scroll_target_global`);
+
+      // 延迟滚动，等待消息渲染完成
+      setTimeout(() => {
+        scrollToDateMessage(scrollTarget, []);
+      }, 1000);
+    }
+  }, [messages]);
 
   // 监听来自navbar的日期选择事件
   useEffect(() => {
@@ -215,7 +271,7 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
     return () => {
       window.removeEventListener('dateSelected', handleDateSelected as EventListener);
     };
-  }, [chatId]);
+  }, []);
 
   // 移动端切换日期面板
   const handleMobileTogglePanel = () => {
@@ -223,11 +279,10 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-full h-full">
+    <div className="flex flex-col lg:flex-row w-full h-full min-h-0">
       {/* 左侧日期选择面板 - 带有动画效果 */}
-      <div className={`hidden lg:block transition-all duration-300 ease-in-out ${isDatePanelExpanded ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+      <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ease-in-out ${isDatePanelExpanded ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
         <DatePanel
-          chatId={chatId}
           onDateSelect={handleDateSelect}
           selectedDate={selectedDate}
         />
@@ -242,8 +297,8 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
           color={isDatePanelExpanded ? "default" : "primary"}
           onPress={toggleDatePanel}
           className={`shadow-lg backdrop-blur-md border transition-all duration-200 group ${isDatePanelExpanded
-              ? 'bg-background/80 border-default-300 hover:bg-default-100'
-              : 'bg-primary/10 border-primary-200 hover:bg-primary/20'
+            ? 'bg-background/80 border-default-300 hover:bg-default-100'
+            : 'bg-primary/10 border-primary-200 hover:bg-primary/20'
             }`}
         >
           {isDatePanelExpanded ? (
@@ -255,15 +310,10 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
       </div>
 
       {/* 聊天区域 - 占满剩余空间 */}
-      <div className="flex-1 flex flex-col h-full min-h-0 lg:border-l border-default-200">
-        <div className="flex-1 min-h-0">
+      <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 lg:border-l border-default-200">
+        <div className="flex-1 min-h-0 min-w-0">
 
-          <ScrollShadow onScroll={handleScroll} className="h-full">
-            {chatInfo && (
-              <div className="mb-4 p-2 bg-default-100 rounded-lg text-xs text-default-600">
-                {chatInfo}
-              </div>
-            )}
+          <ScrollShadow onScroll={handleScroll} className="h-full overflow-y-auto overflow-x-hidden">
             {memories.length > 0 && (
               <div className="mb-6">
                 <Accordion variant="splitted" className="px-0">
@@ -328,6 +378,7 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
                 return (
                   <div
                     key={`message-${m.id || m.role}-${index}`}
+                    data-message-id={m.id || `message-${index}`}
                     className={`flex gap-2 lg:gap-3 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                   >
                     <MemoizedAvatar role={m.role} />
@@ -413,7 +464,39 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
                                 </div>
                               );
                             default:
-                              // 处理未知类型的消息部分
+                              // 兼容更多工具与步骤类型显示
+                              if (typeof part.type === 'string') {
+                                if (part.type.startsWith('tool-')) {
+                                  const name = part.type.replace(/^tool-/, '');
+                                  return (
+                                    <div key={`tool-${name}-${index}`} className="mt-2 p-3 rounded-lg bg-background/50 border border-default-200/50 text-sm w-full">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span>🛠️</span>
+                                        <span className="font-semibold opacity-80">{name}</span>
+                                        <Chip size="sm" variant="flat" color="primary" className="h-5 text-xs">Running</Chip>
+                                      </div>
+                                      {part.args && (
+                                        <pre className="text-xs bg-default-100 rounded-md p-2 overflow-auto">{JSON.stringify(part.args, null, 2)}</pre>
+                                      )}
+                                      {part.output && (
+                                        <pre className="text-xs bg-default-100 rounded-md p-2 overflow-auto mt-2">{JSON.stringify(part.output, null, 2)}</pre>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                if (part.type.startsWith('step-')) {
+                                  const step = part.type.replace(/^step-/, '');
+                                  return (
+                                    <div key={`step-${step}-${index}`} className="mt-2 p-2 rounded-lg bg-default-50 border border-default-200 text-xs w-full">
+                                      <div className="flex items-center gap-2">
+                                        <span>🧩</span>
+                                        <span>Step: {step}</span>
+                                      </div>
+                                      {part.text && <div className="mt-1 opacity-80">{part.text}</div>}
+                                    </div>
+                                  );
+                                }
+                              }
                               console.warn('Unknown message part type:', part.type);
                               return null;
                           }
@@ -494,7 +577,7 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
 
 
       {/* 右侧工具面板 - 在移动端隐藏 */}
-      <div className="hidden lg:flex flex-shrink-0 flex-col overflow-visible border-l border-default-200">
+      <div className="hidden lg:flex w-80 min-w-[20rem] flex-shrink-0 flex-col overflow-y-auto border-l border-default-200">
         <div className="bg-default-50 h-full">
           <TodoCard todos={todos} onRefresh={refreshData} />
         </div>

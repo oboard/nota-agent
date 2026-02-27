@@ -28,8 +28,18 @@ export default function ChatPage() {
 
         setChatId(currentChatId);
 
-        // 加载聊天消息
-        const loadedMessages = await loadChat(currentChatId);
+        // 检查是否有本地存储的完整消息列表
+        const storedMessages = localStorage.getItem(`chat_${currentChatId}_messages`);
+        let loadedMessages;
+
+        if (storedMessages) {
+          // 使用本地存储的完整消息列表
+          loadedMessages = JSON.parse(storedMessages);
+          localStorage.removeItem(`chat_${currentChatId}_messages`); // 清理临时存储
+        } else {
+          // 正常加载聊天消息
+          loadedMessages = await loadChat();
+        }
 
         // 转换消息格式
         const convertedMessages = loadedMessages.map((msg: any) => {

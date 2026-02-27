@@ -8,7 +8,6 @@ import { Calendar, ChevronRight, ChevronLeft, Clock, History } from 'lucide-reac
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 
 interface DatePanelProps {
-  chatId: string;
   onDateSelect: (date: string) => void;
   selectedDate?: string;
 }
@@ -19,7 +18,7 @@ interface DateItem {
   chatCount: number;
 }
 
-export function DatePanel({ chatId, onDateSelect, selectedDate }: DatePanelProps) {
+export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
   const [availableDates, setAvailableDates] = useState<DateItem[]>([]);
   const { isDatePanelExpanded: isExpanded, toggleDatePanel } = useDatePanelStore();
   const [isLoading, setIsLoading] = useState(true);
@@ -159,9 +158,15 @@ export function DatePanel({ chatId, onDateSelect, selectedDate }: DatePanelProps
                       {availableDates.filter(item => {
                         const date = new Date(item.date);
                         const today = new Date();
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
                         const weekAgo = new Date(today);
                         weekAgo.setDate(weekAgo.getDate() - 7);
-                        return date < today && date > weekAgo && date.toDateString() !== today.toDateString() && date.toDateString() !== new Date(today.getTime() - 86400000).toDateString();
+
+                        // 本周内，但排除今天和昨天（已经在上面显示）
+                        return date >= weekAgo && date <= yesterday &&
+                          date.toDateString() !== today.toDateString() &&
+                          date.toDateString() !== yesterday.toDateString();
                       }).map(item => (
                         <Button
                           key={item.date}
@@ -200,7 +205,8 @@ export function DatePanel({ chatId, onDateSelect, selectedDate }: DatePanelProps
                         const today = new Date();
                         const weekAgo = new Date(today);
                         weekAgo.setDate(weekAgo.getDate() - 7);
-                        return date <= weekAgo;
+                        // 一周之前的日期
+                        return date < weekAgo;
                       }).map(item => (
                         <Button
                           key={item.date}

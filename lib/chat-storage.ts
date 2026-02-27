@@ -135,53 +135,65 @@ export class ChatStorage {
   }
 
   /**
-   * 加载聊天
+   * 加载所有历史聊天消息
    */
-  async loadChat(chatId: string): Promise<UIMessage[]> {
-    const todayFile = this.getTodayFileName();
-    const todayFilePath = this.getFilePath(todayFile);
+  async loadChat(page: number = 1, pageSize: number = 20): Promise<UIMessage[]> {
+    const chatFiles = await this.getAllChatFiles();
+    const allMessages: UIMessage[] = [];
 
-    try {
-      // 首先尝试从今天的文件加载
-      const content = await readFile(todayFilePath, 'utf-8');
-      const chats: ChatData[] = JSON.parse(content);
-      const chat = chats.find((c) => c.id === chatId);
-
-      if (chat) {
-        return this.normalizeMessages(chat.messages);
+    for (const file of chatFiles) {
+      const filePath = this.getFilePath(file);
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const chats: ChatData[] = JSON.parse(content);
+        chats.forEach(chat => {
+          allMessages.push(...this.normalizeMessages(chat.messages));
+        });
+      } catch (error) {
+        console.error(`Failed to read chat file ${file}:`, error);
       }
-    } catch (error) {
-      // 今天的文件不存在或解析失败
     }
 
-    // 如果今天文件中没有找到，尝试从历史文件中查找
+    // 按时间戳排序消息并分页
+    const sortedDesc = allMessages.sort((a, b) => {
+      const timeA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+      const timeB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+      return timeB - timeA; // 新的在前（今天优先）
+    });
+
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    // 取出该页后，再按时间正序展示，保证阅读顺序从早到晚
+    const pageMessages = sortedDesc.slice(startIndex, endIndex).sort((a, b) => {
+      const timeA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+      const timeB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+      return timeA - timeB;
+    });
+
+    return pageMessages;
+  }
+
+  /**
+   * 获取所有聊天文件
+   */
+  private async getAllChatFiles(): Promise<string[]> {
+    const chatDir = path.dirname(this.getFilePath(this.getTodayFileName()));
+    let files: string[] = [];
     try {
-      const files = await readdir(this.dataDir);
-      const jsonFiles = files.filter((file) => file.endsWith('.json')).sort().reverse();
-
-      for (const file of jsonFiles) {
-        if (file === todayFile) continue; // 跳过今天文件，已经处理过了
-
-        try {
-          const filePath = this.getFilePath(file);
-          const content = await readFile(filePath, 'utf-8');
-          const chats: ChatData[] = JSON.parse(content);
-          const chat = chats.find((c) => c.id === chatId);
-
-          if (chat) {
-            return this.normalizeMessages(chat.messages);
-          }
-        } catch (error) {
-          // 文件读取或解析失败，继续下一个文件
-          continue;
-        }
-      }
-    } catch (error) {
-      console.error('Error searching for chat in history files:', error);
+      files = await readdir(chatDir);
+    } catch {
+      files = [];
     }
-
-    // 如果都没找到，返回空数组
-    return [];
+    // 支持两种命名：YYYY-MM-DD.json 和 chat-YYYY-MM-DD.json，并按日期降序（今天优先）
+    const candidates = files.filter(file => file.match(/^(chat-)?\d{4}-\d{2}-\d{2}\.json$/));
+    return candidates.sort((a, b) => {
+      const ma = a.match(/^(?:chat-)?(\d{4})-(\d{2})-(\d{2})\.json$/);
+      const mb = b.match(/^(?:chat-)?(\d{4})-(\d{2})-(\d{2})\.json$/);
+      const ta = ma ? new Date(`${ma[1]}-${ma[2]}-${ma[3]}`).getTime() : 0;
+      const tb = mb ? new Date(`${mb[1]}-${mb[2]}-${mb[3]}`).getTime() : 0;
+      return tb - ta;
+    });
   }
 
   /**
@@ -268,195 +280,4 @@ export class ChatStorage {
     // 保存回今天的文件
     await writeFile(filePath, JSON.stringify(todayChats, null, 2));
   }
-
-  /**
-   * 追加消息到聊天
-   */
-  async appendMessage(chatId: string, message: UIMessage): Promise<void> {
-    const messages = await this.loadChat(chatId);
-    messages.push(this.normalizeMessage(message));
-    await this.saveChat(chatId, messages);
-  }
-
-  /**
-   * 获取今天的所有聊天
-   */
-  async getTodayChats(): Promise<ChatData[]> {
-    const todayFile = this.getTodayFileName();
-    const filePath = this.getFilePath(todayFile);
-
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      const chats: ChatData[] = JSON.parse(content);
-      return chats.map((chat) => ({
-        ...chat,
-        messages: this.normalizeMessages(chat.messages),
-      }));
-    } catch (error) {
-      return [];
-    }
-  }
-
-  /**
-   * 获取可用的日期列表
-   */
-  async getAvailableDates(): Promise<{ date: string; fileName: string; chatCount: number }[]> {
-    try {
-      const files = await readdir(this.dataDir);
-      const jsonFiles = files.filter((file) => file.endsWith('.json')).sort().reverse();
-
-      const dates = await Promise.all(
-        jsonFiles.map(async (fileName) => {
-          try {
-            const filePath = this.getFilePath(fileName);
-            const content = await readFile(filePath, 'utf-8');
-            const chats: ChatData[] = JSON.parse(content);
-
-            // 从文件名提取日期 (YYYY-MM-DD.json)
-            const date = fileName.replace('.json', '');
-
-            return {
-              date,
-              fileName,
-              chatCount: chats.length,
-            };
-          } catch (error) {
-            console.error(`Error reading date file ${fileName}:`, error);
-            return null;
-          }
-        }),
-      );
-
-      return dates.filter((date) => date !== null);
-    } catch (error) {
-      console.error('Error getting available dates:', error);
-      return [];
-    }
-  }
-
-  /**
-   * 滚动到指定日期的消息
-   */
-  async scrollToDate(chatId: string, targetDate: string): Promise<{ messages: UIMessage[]; foundDate: boolean }> {
-    const filePath = this.getFilePath(`${targetDate}.json`);
-
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      const chats: ChatData[] = JSON.parse(content);
-      const chat = chats.find((c) => c.id === chatId);
-
-      if (chat) {
-        return {
-          messages: this.normalizeMessages(chat.messages),
-          foundDate: true,
-        };
-      }
-    } catch (error) {
-      console.error(`Error scrolling to date ${targetDate}:`, error);
-    }
-
-    return {
-      messages: [],
-      foundDate: false,
-    };
-  }
-
-  /**
-   * 加载更多历史消息（无限滚动）
-   */
-  async loadMoreMessages(chatId: string, beforeMessageId?: string, limit: number = 20): Promise<UIMessage[]> {
-    const files = await readdir(this.dataDir);
-    const jsonFiles = files.filter((file) => file.endsWith('.json')).sort().reverse();
-
-    let allMessages: UIMessage[] = [];
-    let foundTargetFile = false;
-
-    for (const file of jsonFiles) {
-      try {
-        const filePath = this.getFilePath(file);
-        const content = await readFile(filePath, 'utf-8');
-        const chats: ChatData[] = JSON.parse(content);
-        const chat = chats.find((c) => c.id === chatId);
-
-        if (chat) {
-          const normalizedChatMessages = this.normalizeMessages(chat.messages);
-
-          if (beforeMessageId) {
-            // 找到指定的消息ID，只返回该消息之前的内容
-            const messageIndex = normalizedChatMessages.findIndex((m) => m.id === beforeMessageId);
-            if (messageIndex > 0) {
-              const messagesBefore = normalizedChatMessages.slice(
-                Math.max(0, messageIndex - limit),
-                messageIndex,
-              );
-              allMessages = [...messagesBefore, ...allMessages];
-            }
-          } else if (!foundTargetFile) {
-            // 如果没有指定消息ID，从找到的第一个文件开始加载
-            allMessages = [...normalizedChatMessages, ...allMessages];
-            foundTargetFile = true;
-          } else {
-            // 继续加载更早的消息
-            allMessages = [...normalizedChatMessages, ...allMessages];
-          }
-
-          if (allMessages.length >= limit) {
-            break;
-          }
-        }
-      } catch (error) {
-        console.error(`Error reading file ${file}:`, error);
-        continue;
-      }
-    }
-
-    return allMessages.slice(0, limit);
-  }
-
-  /**
-   * 获取或创建默认聊天（确保始终有可用的聊天）
-   */
-  async getOrCreateDefaultChat(): Promise<string> {
-    const todayChats = await this.getTodayChats();
-
-    if (todayChats.length > 0) {
-      // 按更新时间排序，获取最新的聊天
-      const latestChat = todayChats.sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )[0];
-      return latestChat.id;
-    }
-
-    // 如果没有今天的聊天，创建一个新的
-    return await this.createChat();
-  }
-
-  /**
-   * 获取最近的聊天记录（用于恢复会话）
-   */
-  async getRecentChats(limit: number = 5): Promise<ChatData[]> {
-    const todayFile = this.getTodayFileName();
-    const todayFilePath = this.getFilePath(todayFile);
-
-    try {
-      // 首先获取今天的聊天
-      const todayContent = await readFile(todayFilePath, 'utf-8');
-      const todayChats: ChatData[] = JSON.parse(todayContent);
-
-      // 按更新时间排序，最新的在前面
-      const sortedChats = todayChats
-        .map((chat) => ({
-          ...chat,
-          messages: this.normalizeMessages(chat.messages),
-        }))
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        .slice(0, limit);
-
-      return sortedChats;
-    } catch (error) {
-      return [];
-    }
-  }
 }
-
-export const chatStorage = new ChatStorage();
