@@ -81,6 +81,7 @@ export function addTimestampSeparators(messages: UIMessage[]): Array<UIMessage |
   let lastTimestamp: string | undefined;
 
   messages.forEach((message) => {
+    // 使用消息的实际创建时间，如果没有则使用当前时间作为后备
     const messageTime = message.createdAt || new Date().toISOString();
 
     // 检查是否需要添加时间分隔符

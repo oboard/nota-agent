@@ -1,12 +1,9 @@
 "use client";
 
-import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Checkbox } from "@heroui/checkbox";
 import { ScrollShadow } from "@heroui/scroll-shadow";
 import { Chip } from "@heroui/chip";
-import { Divider } from "@heroui/divider";
-import { Accordion, AccordionItem } from "@heroui/accordion";
 import { toggleTodo, deleteTodo } from "@/app/actions";
 import { TodoData } from "@/lib/storage";
 
@@ -134,65 +131,8 @@ export function TodoCard({ todos, onRefresh, onMobileExpandChange }: TodoCardPro
     );
 
     return (
-        <>
-            {/* Desktop View */}
-            <Card className="hidden lg:flex w-full h-full">
-                <CardHeader className="flex justify-between items-center px-6 py-4">
-                    <div>
-                        <h2 className="text-2xl font-bold">
-                            Today's Tasks
-                        </h2>
-                        <p className="text-sm text-default-500 mt-1">
-                            Manage your daily goals
-                        </p>
-                    </div>
-                    <Chip
-                        size="lg"
-                        variant="solid"
-                        color="primary"
-                        className="px-3 py-1"
-                    >
-                        {todos.filter((t) => !t.completed).length} remaining
-                    </Chip>
-                </CardHeader>
-                <Divider />
-                <CardBody className="p-0">
-                    <ScrollShadow className="h-full p-3">
-                        <TodoList />
-                    </ScrollShadow>
-                </CardBody>
-            </Card>
-
-            {/* Mobile View */}
-            <div className="lg:hidden w-full transition-all duration-300 pt-2">
-                <Accordion
-                    variant="splitted"
-                    onSelectionChange={(keys) => {
-                        const isExpanded = Array.from(keys).includes("todos");
-                        onMobileExpandChange?.(isExpanded);
-                    }}
-                >
-                    <AccordionItem
-                        key="todos"
-                        aria-label="Tasks"
-                        title={
-                            <div className="flex justify-between items-center w-full pr-2">
-                                <span className="font-semibold">My Tasks</span>
-                                <Chip size="sm" variant="solid" color="primary">
-                                    {todos.filter((t) => !t.completed).length}
-                                </Chip>
-                            </div>
-                        }
-                        classNames={{
-                            content: "h-[calc(100vh-140px)] overflow-y-auto"
-                        }}
-                    >
-                        <div className="pb-20">
-                            <TodoList />
-                        </div>
-                    </AccordionItem>
-                </Accordion>
-            </div>
-        </>
+        <ScrollShadow className="h-full p-3">
+            <TodoList />
+        </ScrollShadow>
     );
 }

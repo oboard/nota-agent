@@ -3,6 +3,7 @@ import { streamText, tool, generateObject, convertToModelMessages, generateText,
 import { z } from "zod";
 import { createTodo, updateTodo, toggleTodo, deleteTodo, addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
 import { urlMetadataExtractor } from "@/lib/url-metadata";
+import { skillsManager } from "@/lib/skills-manager";
 
 export const maxDuration = 30;
 
@@ -70,11 +71,14 @@ export async function POST(req: Request) {
     apiKey: process.env.OPENAI_API_KEY,
   })(modelName)
 
-  // 获取上下文信息
-  const [recentMemories, currentTodos] = await Promise.all([
+  // 获取上下文信息和技能
+  const [recentMemories, currentTodos, availableSkills] = await Promise.all([
     getRecentMemories(),
     getTodos(),
+    skillsManager.discoverSkills(),
   ]);
+
+  const skillsPrompt = skillsManager.buildSkillsPrompt(availableSkills);
 
   const systemPrompt = `你是一个智能助手 NotaAgent。
   你的核心目标是帮助用户整理任务和回答问题。
@@ -85,14 +89,16 @@ export async function POST(req: Request) {
   当前待办事项：
   ${currentTodos}
   
+  ${skillsPrompt}
+  
   你的职责：
   1. 回答用户的问题或与用户对话。
   2. 智能管理待办事项：
-     - 如果用户提到具体时间（几点、小时、分钟、时间段），使用 createTodo 工具，必须设置 startDateTime 和 endDateTime
-     - 如果用户只说要做的事情但没有具体时间，使用 createSimpleTodo 工具
-     - 如果用户表示完成了某个任务，使用 completeTodo 工具直接标记为完成
-     - 如果用户说要删除某个任务，使用 deleteTodo 工具删除
-     - 如果用户要修改任务信息，使用 updateTodo 工具更新
+      - 如果用户提到具体时间（几点、小时、分钟、时间段），使用 createTodo 工具，必须设置 startDateTime 和 endDateTime
+      - 如果用户只说要做的事情但没有具体时间，使用 createSimpleTodo 工具
+      - 如果用户表示完成了某个任务，使用 completeTodo 工具直接标记为完成
+      - 如果用户说要删除某个任务，使用 deleteTodo 工具删除
+      - 如果用户要修改任务信息，使用 updateTodo 工具更新
   3. 始终保持友善、简洁。
   4. 今天的日期是：${new Date().toLocaleDateString()}。
   5. 当前UTC时间是：${new Date().toISOString()}（注意：这是UTC时间，比北京时间慢8小时）。
@@ -186,6 +192,24 @@ export async function POST(req: Request) {
         execute: async (data) => {
           await deleteTodo(data.id);
           return `任务已删除`;
+        },
+      }),
+      loadSkill: tool({
+        description: "加载指定技能以获取专业指令",
+        inputSchema: z.object({
+          name: z.string().describe("要加载的技能名称"),
+        }),
+        execute: async ({ name }) => {
+          const skill = await skillsManager.loadSkill(name);
+          if (!skill) {
+            return { error: `技能 '${name}' 未找到` };
+          }
+
+          return {
+            skillDirectory: skill.metadata.path,
+            content: skill.content,
+            metadata: skill.metadata,
+          };
         },
       }),
     },
@@ -304,12 +328,8 @@ export async function POST(req: Request) {
       // 保存聊天消息（如果提供了chatId）
       if (chatId) {
         try {
-          // 确保所有消息都有时间戳
-          const messagesWithTimestamps = messages.map(msg => ({
-            ...msg,
-            createdAt: msg.createdAt || new Date().toISOString()
-          }));
-          await saveChat(chatId, messagesWithTimestamps);
+          // 消息已经通过 ChatStorage 的 normalizeMessages 方法处理，不需要额外处理时间戳
+          await saveChat(chatId, messages);
           console.log(`聊天消息已保存到聊天 ${chatId}`);
         } catch (error) {
           console.error("Failed to save chat messages:", error);

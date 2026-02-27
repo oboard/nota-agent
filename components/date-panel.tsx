@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { ScrollShadow } from "@heroui/scroll-shadow";
 import { getAvailableDates } from '@/app/actions';
+import { Calendar, ChevronRight, ChevronLeft, Clock, History } from 'lucide-react';
+import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 
 interface DatePanelProps {
   chatId: string;
@@ -20,8 +21,11 @@ interface DateItem {
 
 export function DatePanel({ chatId, onDateSelect, selectedDate }: DatePanelProps) {
   const [availableDates, setAvailableDates] = useState<DateItem[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isDatePanelExpanded: isExpanded, toggleDatePanel } = useDatePanelStore();
   const [isLoading, setIsLoading] = useState(true);
+
+  // 使用store中的展开状态
+  const isCollapsed = !isExpanded;
 
   // 获取可用日期
   useEffect(() => {
@@ -85,144 +89,157 @@ export function DatePanel({ chatId, onDateSelect, selectedDate }: DatePanelProps
 
   if (isLoading) {
     return (
-      <div className={`${isCollapsed ? 'w-12' : 'w-64'} transition-all duration-300`}>
-        <Card className="h-full">
-          <CardBody className="p-4">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-sm text-default-500">加载中...</div>
-            </div>
-          </CardBody>
-        </Card>
+      <div className={`${isCollapsed ? 'w-12' : 'w-80'} transition-all duration-300 flex-shrink-0 h-full`}>
+        <div className="h-full bg-default-50 border-r border-default-200 flex flex-col">
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-sm text-default-500">加载中...</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`${isCollapsed ? 'w-12' : 'w-64'} transition-all duration-300 flex-shrink-0`}>
-      <Card className="h-full">
-        <CardHeader className="flex justify-between items-center p-4 border-b border-divider">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              <h3 className="text-sm font-medium">日期选择</h3>
-            </div>
-          )}
-          <Button
-            isIconOnly
-            size="sm"
-            variant="light"
-            onPress={() => setIsCollapsed(!isCollapsed)}
-            className="min-w-0"
-          >
-            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
-        </CardHeader>
+    <div className="w-80 flex-shrink-0 h-full animate-in slide-in-from-left duration-300">
+      <div className="h-full bg-default-50 border-r border-default-200 flex flex-col">
+        {/* Header - 移除收起按钮，使用统一的悬浮按钮 */}
+        <div className="flex items-center p-4 border-b border-default-200 bg-default-100">
+          <div className="flex items-center gap-3">
+            <History className="w-5 h-5 text-primary" />
+            <h3 className="text-base font-semibold text-foreground">历史记录</h3>
+          </div>
+        </div>
 
         {!isCollapsed && (
-          <CardBody className="p-0">
-            <ScrollShadow className="h-[calc(100%-60px)]">
-              <div className="p-4">
-              </>
-                )}
+          <ScrollShadow className="flex-1">
+            <div className="p-3 space-y-1">
 
               {availableDates.length > 0 && (
                 <>
                   {/* 今天和昨天 */}
-                  {availableDates.filter(item => {
-                    const date = new Date(item.date);
-                    const today = new Date();
-                    const yesterday = new Date(today);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    return date.toDateString() === today.toDateString() || date.toDateString() === yesterday.toDateString();
-                  }).map(item => (
-                    <Button
-                      key={item.date}
-                      variant={selectedDate === item.date ? "solid" : "light"}
-                      color={selectedDate === item.date ? "primary" : "default"}
-                      className="w-full justify-start mb-2"
-                      onPress={() => onDateSelect(item.date)}
-                      size="sm"
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{formatDateDisplay(item.date)}</span>
-                        <span className="text-xs text-default-500">{item.chatCount} 个聊天</span>
-                      </div>
-                    </Button>
-                  ))}
-
-                  {/* 本周 */}
-                  <div className="mt-4">
-                    <div className="text-xs text-default-500 mb-2">本周</div>
+                  <div className="space-y-1">
                     {availableDates.filter(item => {
                       const date = new Date(item.date);
                       const today = new Date();
-                      const weekAgo = new Date(today);
-                      weekAgo.setDate(weekAgo.getDate() - 7);
-                      return date < today && date > weekAgo && date.toDateString() !== today.toDateString() && date.toDateString() !== new Date(today.getTime() - 86400000).toDateString();
+                      const yesterday = new Date(today);
+                      yesterday.setDate(yesterday.getDate() - 1);
+                      return date.toDateString() === today.toDateString() || date.toDateString() === yesterday.toDateString();
                     }).map(item => (
                       <Button
                         key={item.date}
                         variant={selectedDate === item.date ? "solid" : "light"}
                         color={selectedDate === item.date ? "primary" : "default"}
-                        className="w-full justify-start mb-2"
+                        className={`w-full justify-start px-3 py-3 h-auto min-h-0 transition-all ${selectedDate === item.date ? 'bg-primary-50 border-primary-200' : 'hover:bg-default-100'} rounded-lg`}
                         onPress={() => onDateSelect(item.date)}
                         size="sm"
                       >
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{formatDateDisplay(item.date)}</span>
-                          <span className="text-xs text-default-500">{item.chatCount} 个聊天</span>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${selectedDate === item.date ? 'bg-primary' : 'bg-default-300'}`} />
+                            <div className="flex flex-col items-start">
+                              <span className="text-sm font-medium">{formatDateDisplay(item.date)}</span>
+                              <span className="text-xs text-default-500">{item.chatCount} 条消息</span>
+                            </div>
+                          </div>
+                          {selectedDate === item.date && (
+                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                          )}
                         </div>
                       </Button>
                     ))}
+                  </div>
+
+                  {/* 本周 */}
+                  <div className="pt-3">
+                    <div className="text-xs font-semibold text-default-500 mb-2 px-3 flex items-center gap-2">
+                      <Clock className="w-3 h-3" />
+                      本周
+                    </div>
+                    <div className="space-y-1">
+                      {availableDates.filter(item => {
+                        const date = new Date(item.date);
+                        const today = new Date();
+                        const weekAgo = new Date(today);
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return date < today && date > weekAgo && date.toDateString() !== today.toDateString() && date.toDateString() !== new Date(today.getTime() - 86400000).toDateString();
+                      }).map(item => (
+                        <Button
+                          key={item.date}
+                          variant={selectedDate === item.date ? "solid" : "light"}
+                          color={selectedDate === item.date ? "primary" : "default"}
+                          className={`w-full justify-start px-3 py-3 h-auto min-h-0 transition-all ${selectedDate === item.date ? 'bg-primary-50 border-primary-200' : 'hover:bg-default-100'} rounded-lg`}
+                          onPress={() => onDateSelect(item.date)}
+                          size="sm"
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${selectedDate === item.date ? 'bg-primary' : 'bg-default-300'}`} />
+                              <div className="flex flex-col items-start">
+                                <span className="text-sm font-medium">{formatDateDisplay(item.date)}</span>
+                                <span className="text-xs text-default-500">{item.chatCount} 条消息</span>
+                              </div>
+                            </div>
+                            {selectedDate === item.date && (
+                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                            )}
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* 更早 */}
-                  <div className="mt-4">
-                    <div className="text-xs text-default-500 mb-2">更早</div>
-                    {availableDates.filter(item => {
-                      const date = new Date(item.date);
-                      const today = new Date();
-                      const weekAgo = new Date(today);
-                      weekAgo.setDate(weekAgo.getDate() - 7);
-                      return date <= weekAgo;
-                    }).map(item => (
-                      <Button
-                        key={item.date}
-                        variant={selectedDate === item.date ? "solid" : "light"}
-                        color={selectedDate === item.date ? "primary" : "default"}
-                        className="w-full justify-start mb-2"
-                        onPress={() => onDateSelect(item.date)}
-                        size="sm"
-                      >
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{formatDateDisplay(item.date)}</span>
-                          <span className="text-xs text-default-400">{getRelativeDateDescription(item.date)}</span>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-
-                  {availableDates.length === 0 && (
-                    <div className="text-center text-default-500 text-sm py-8">
-                      暂无聊天记录
+                  <div className="pt-3">
+                    <div className="text-xs font-semibold text-default-500 mb-2 px-3 flex items-center gap-2">
+                      <History className="w-3 h-3" />
+                      更早
                     </div>
-                  )}
+                    <div className="space-y-1">
+                      {availableDates.filter(item => {
+                        const date = new Date(item.date);
+                        const today = new Date();
+                        const weekAgo = new Date(today);
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return date <= weekAgo;
+                      }).map(item => (
+                        <Button
+                          key={item.date}
+                          variant={selectedDate === item.date ? "solid" : "light"}
+                          color={selectedDate === item.date ? "primary" : "default"}
+                          className={`w-full justify-start px-3 py-3 h-auto min-h-0 transition-all ${selectedDate === item.date ? 'bg-primary-50 border-primary-200' : 'hover:bg-default-100'} rounded-lg`}
+                          onPress={() => onDateSelect(item.date)}
+                          size="sm"
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${selectedDate === item.date ? 'bg-primary' : 'bg-default-300'}`} />
+                              <div className="flex flex-col items-start">
+                                <span className="text-sm font-medium">{formatDateDisplay(item.date)}</span>
+                                <span className="text-xs text-default-500">{getRelativeDateDescription(item.date)} • {item.chatCount} 条消息</span>
+                              </div>
+                            </div>
+                            {selectedDate === item.date && (
+                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                            )}
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </>)}
+
+              {availableDates.length === 0 && !isLoading && (
+                <div className="text-center text-default-500 text-sm py-8 px-4">
+                  <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>暂无聊天记录</p>
+                  <p className="text-xs mt-1">开始新的对话吧</p>
                 </div>
-            </ScrollShadow>
-          </CardBody>
+              )}
+            </div>
+          </ScrollShadow>
         )}
 
-        {isCollapsed && (
-          <CardBody className="p-4">
-            <div className="flex flex-col items-center gap-2">
-              <Calendar className="w-5 h-5 text-default-400" />
-              <span className="text-xs text-default-500 vertical-text">
-                日期
-              </span>
-            </div>
-          </CardBody>
-        )}
-      </Card>
+      </div>
     </div>
   );
 }

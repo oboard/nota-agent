@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, clipboard } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
+import type { BrowserWindow as BrowserWindowType } from 'electron'
 import * as path from 'path'
 import { checkAndConsolidateMemories } from './memory-manager.ts'
 import { fileURLToPath } from 'url'
@@ -12,8 +13,9 @@ const createContextMenu = () => {
       label: '复制',
       accelerator: 'CmdOrCtrl+C',
       click: (menuItem, browserWindow) => {
-        if (browserWindow) {
-          browserWindow.webContents.copy()
+        const win = browserWindow as BrowserWindowType | null
+        if (win && win.webContents) {
+          win.webContents.copy()
         }
       }
     },
@@ -21,8 +23,9 @@ const createContextMenu = () => {
       label: '粘贴',
       accelerator: 'CmdOrCtrl+V',
       click: (menuItem, browserWindow) => {
-        if (browserWindow) {
-          browserWindow.webContents.paste()
+        const win = browserWindow as BrowserWindowType | null
+        if (win && win.webContents) {
+          win.webContents.paste()
         }
       }
     },
@@ -30,8 +33,9 @@ const createContextMenu = () => {
       label: '剪切',
       accelerator: 'CmdOrCtrl+X',
       click: (menuItem, browserWindow) => {
-        if (browserWindow) {
-          browserWindow.webContents.cut()
+        const win = browserWindow as BrowserWindowType | null
+        if (win && win.webContents) {
+          win.webContents.cut()
         }
       }
     },
@@ -40,8 +44,9 @@ const createContextMenu = () => {
       label: '全选',
       accelerator: 'CmdOrCtrl+A',
       click: (menuItem, browserWindow) => {
-        if (browserWindow) {
-          browserWindow.webContents.selectAll()
+        const win = browserWindow as BrowserWindowType | null
+        if (win && win.webContents) {
+          win.webContents.selectAll()
         }
       }
     },
@@ -50,8 +55,9 @@ const createContextMenu = () => {
       label: '撤销',
       accelerator: 'CmdOrCtrl+Z',
       click: (menuItem, browserWindow) => {
-        if (browserWindow) {
-          browserWindow.webContents.undo()
+        const win = browserWindow as BrowserWindowType | null
+        if (win && win.webContents) {
+          win.webContents.undo()
         }
       }
     },
@@ -59,8 +65,9 @@ const createContextMenu = () => {
       label: '重做',
       accelerator: 'CmdOrCtrl+Shift+Z',
       click: (menuItem, browserWindow) => {
-        if (browserWindow) {
-          browserWindow.webContents.redo()
+        const win = browserWindow as BrowserWindowType | null
+        if (win && win.webContents) {
+          win.webContents.redo()
         }
       }
     }
