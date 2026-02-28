@@ -6,6 +6,7 @@ import { ScrollShadow } from "@heroui/scroll-shadow";
 import { getAvailableDates } from '@/app/actions';
 import { Calendar, ChevronRight, ChevronLeft, Clock, History } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
+import { DateItemButton } from '@/components/date-item-button';
 
 interface DatePanelProps {
   onDateSelect: (date: string) => void;
@@ -20,7 +21,7 @@ interface DateItem {
 
 export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
   const [availableDates, setAvailableDates] = useState<DateItem[]>([]);
-  const { isDatePanelExpanded: isExpanded, toggleDatePanel } = useDatePanelStore();
+  const { isDatePanelExpanded: isExpanded } = useDatePanelStore();
   const [isLoading, setIsLoading] = useState(true);
 
   // 使用store中的展开状态
@@ -86,6 +87,7 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
     return `${Math.floor(diffDays / 30)}个月前`;
   };
 
+
   if (isLoading) {
     return (
       <div className={`${isCollapsed ? 'w-12' : 'w-80'} transition-all duration-300 flex-shrink-0 h-full`}>
@@ -117,35 +119,24 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
                 <>
                   {/* 今天和昨天 */}
                   <div className="space-y-1">
-                    {availableDates.filter(item => {
-                      const date = new Date(item.date);
-                      const today = new Date();
-                      const yesterday = new Date(today);
-                      yesterday.setDate(yesterday.getDate() - 1);
-                      return date.toDateString() === today.toDateString() || date.toDateString() === yesterday.toDateString();
-                    }).map(item => (
-                      <Button
-                        key={item.date}
-                        variant={selectedDate === item.date ? "solid" : "light"}
-                        color={selectedDate === item.date ? "primary" : "default"}
-                        className={`w-full justify-start px-3 py-3 h-auto min-h-0 transition-all ${selectedDate === item.date ? 'bg-primary-50 border-primary-200' : 'hover:bg-default-100'} rounded-lg`}
-                        onPress={() => onDateSelect(item.date)}
-                        size="sm"
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2 h-2 rounded-full ${selectedDate === item.date ? 'bg-primary' : 'bg-default-300'}`} />
-                            <div className="flex flex-col items-start">
-                              <span className="text-sm font-medium">{formatDateDisplay(item.date)}</span>
-                              <span className="text-xs text-default-500">{item.chatCount} 条消息</span>
-                            </div>
-                          </div>
-                          {selectedDate === item.date && (
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                          )}
-                        </div>
-                      </Button>
-                    ))}
+                    {availableDates
+                      .filter(item => {
+                        const date = new Date(item.date);
+                        const today = new Date();
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        return date.toDateString() === today.toDateString() || date.toDateString() === yesterday.toDateString();
+                      })
+                      .map(item => (
+                        <DateItemButton
+                          key={item.date}
+                          date={item.date}
+                          label={formatDateDisplay(item.date)}
+                          subtitle={`${item.chatCount} 条消息`}
+                          selected={selectedDate === item.date}
+                          onPress={() => onDateSelect(item.date)}
+                        />
+                      ))}
                   </div>
 
                   {/* 本周 */}
@@ -155,41 +146,30 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
                       本周
                     </div>
                     <div className="space-y-1">
-                      {availableDates.filter(item => {
-                        const date = new Date(item.date);
-                        const today = new Date();
-                        const yesterday = new Date(today);
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        const weekAgo = new Date(today);
-                        weekAgo.setDate(weekAgo.getDate() - 7);
+                      {availableDates
+                        .filter(item => {
+                          const date = new Date(item.date);
+                          const today = new Date();
+                          const yesterday = new Date(today);
+                          yesterday.setDate(yesterday.getDate() - 1);
+                          const weekAgo = new Date(today);
+                          weekAgo.setDate(weekAgo.getDate() - 7);
 
-                        // 本周内，但排除今天和昨天（已经在上面显示）
-                        return date >= weekAgo && date <= yesterday &&
-                          date.toDateString() !== today.toDateString() &&
-                          date.toDateString() !== yesterday.toDateString();
-                      }).map(item => (
-                        <Button
-                          key={item.date}
-                          variant={selectedDate === item.date ? "solid" : "light"}
-                          color={selectedDate === item.date ? "primary" : "default"}
-                          className={`w-full justify-start px-3 py-3 h-auto min-h-0 transition-all ${selectedDate === item.date ? 'bg-primary-50 border-primary-200' : 'hover:bg-default-100'} rounded-lg`}
-                          onPress={() => onDateSelect(item.date)}
-                          size="sm"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full ${selectedDate === item.date ? 'bg-primary' : 'bg-default-300'}`} />
-                              <div className="flex flex-col items-start">
-                                <span className="text-sm font-medium">{formatDateDisplay(item.date)}</span>
-                                <span className="text-xs text-default-500">{item.chatCount} 条消息</span>
-                              </div>
-                            </div>
-                            {selectedDate === item.date && (
-                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                            )}
-                          </div>
-                        </Button>
-                      ))}
+                          // 本周内，但排除今天和昨天（已经在上面显示）
+                          return date >= weekAgo && date <= yesterday &&
+                            date.toDateString() !== today.toDateString() &&
+                            date.toDateString() !== yesterday.toDateString();
+                        })
+                        .map(item => (
+                          <DateItemButton
+                            key={item.date}
+                            date={item.date}
+                            label={formatDateDisplay(item.date)}
+                            subtitle={`${item.chatCount} 条消息`}
+                            selected={selectedDate === item.date}
+                            onPress={() => onDateSelect(item.date)}
+                          />
+                        ))}
                     </div>
                   </div>
 
@@ -200,36 +180,25 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
                       更早
                     </div>
                     <div className="space-y-1">
-                      {availableDates.filter(item => {
-                        const date = new Date(item.date);
-                        const today = new Date();
-                        const weekAgo = new Date(today);
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        // 一周之前的日期
-                        return date < weekAgo;
-                      }).map(item => (
-                        <Button
-                          key={item.date}
-                          variant={selectedDate === item.date ? "solid" : "light"}
-                          color={selectedDate === item.date ? "primary" : "default"}
-                          className={`w-full justify-start px-3 py-3 h-auto min-h-0 transition-all ${selectedDate === item.date ? 'bg-primary-50 border-primary-200' : 'hover:bg-default-100'} rounded-lg`}
-                          onPress={() => onDateSelect(item.date)}
-                          size="sm"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-2 h-2 rounded-full ${selectedDate === item.date ? 'bg-primary' : 'bg-default-300'}`} />
-                              <div className="flex flex-col items-start">
-                                <span className="text-sm font-medium">{formatDateDisplay(item.date)}</span>
-                                <span className="text-xs text-default-500">{getRelativeDateDescription(item.date)} • {item.chatCount} 条消息</span>
-                              </div>
-                            </div>
-                            {selectedDate === item.date && (
-                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                            )}
-                          </div>
-                        </Button>
-                      ))}
+                      {availableDates
+                        .filter(item => {
+                          const date = new Date(item.date);
+                          const today = new Date();
+                          const weekAgo = new Date(today);
+                          weekAgo.setDate(weekAgo.getDate() - 7);
+                          // 一周之前的日期
+                          return date < weekAgo;
+                        })
+                        .map(item => (
+                          <DateItemButton
+                            key={item.date}
+                            date={item.date}
+                            label={formatDateDisplay(item.date)}
+                            subtitle={`${getRelativeDateDescription(item.date)} • ${item.chatCount} 条消息`}
+                            selected={selectedDate === item.date}
+                            onPress={() => onDateSelect(item.date)}
+                          />
+                        ))}
                     </div>
                   </div>
                 </>)}

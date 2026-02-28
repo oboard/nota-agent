@@ -21,8 +21,10 @@ import { saveChat, loadMoreMessages, scrollToDate } from '@/app/actions';
 import { addTimestampSeparators } from '@/lib/chat-utils';
 import { DatePanel } from '@/components/date-panel';
 import { TodoCard } from "./todo-card";
+import { DesktopTodoPanel } from "./desktop-todo-panel";
 import { Calendar, ChevronLeft, ListTodo } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
+import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
 
 interface Memory {
   id: string;
@@ -52,7 +54,7 @@ const MemoizedAvatar = memo(({ role }: { role: string }) => (
 
 MemoizedAvatar.displayName = 'MemoizedAvatar';
 
-export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfaceProps) {
+export function ChatInterface({ chatId, initialMessages = [], memories = [] }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const skipFirstScrollRef = useRef(true);
@@ -60,13 +62,21 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [historyMessages, setHistoryMessages] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const { isDatePanelExpanded: isDatePanelExpanded, toggleDatePanel } = useDatePanelStore();
+  const { isDatePanelExpanded, toggleDatePanel } = useDatePanelStore();
+  const { isTodoPanelExpanded, toggleTodoPanel, setExpanded: setTodoPanelExpanded } = useTodoPanelStore();
   const [isMobile, setIsMobile] = useState(false);
-  const [isRightPanelExpanded, setIsRightPanelExpanded] = useState(true);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1024px)');
-    const update = () => setIsMobile(mq.matches);
+    const update = () => {
+      setIsMobile(mq.matches);
+      // 移动端默认收起，桌面端默认展开
+      if (mq.matches) {
+        setTodoPanelExpanded(false);
+      } else {
+        setTodoPanelExpanded(true);
+      }
+    }
     update();
     // 兼容较老的浏览器事件API
     if ((mq as any).addEventListener) {
@@ -116,10 +126,11 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
   }, [messages, status]);
 
   // 合并历史+当前消息，并添加时间戳分隔符（避免闪烁）
-  const mergedMessages = useMemo(
-    () => [...(historyMessages ?? []), ...(messages ?? [])],
-    [historyMessages, messages]
-  );
+  const mergedMessages = useMemo(() => {
+    const ids = new Set<string>((historyMessages ?? []).map((m: any) => m?.id));
+    const fresh = (messages ?? []).filter((m: any) => !ids.has(m?.id));
+    return [...(historyMessages ?? []), ...fresh];
+  }, [historyMessages, messages]);
 
   const messagesWithTimestamps = useMemo(
     () => addTimestampSeparators(mergedMessages ?? []),
@@ -240,31 +251,6 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
     }
   };
 
-  const scrollToMessages = (targetMessages: any[]) => {
-    // 滚动到指定日期的消息
-    console.log('滚动到消息:', targetMessages.length, '条');
-
-    // 查找目标消息在完整消息列表中的位置
-    if (targetMessages.length > 0 && messages.length > 0) {
-      const firstTargetMessage = targetMessages[0];
-      const targetIndex = messages.findIndex(msg => msg.id === firstTargetMessage.id);
-
-      if (targetIndex !== -1) {
-        // 滚动到对应位置
-        const messageElements = document.querySelectorAll('[data-message-id]');
-        if (messageElements[targetIndex]) {
-          messageElements[targetIndex].scrollIntoView({ behavior: "smooth", block: "center" });
-          return;
-        }
-      }
-    }
-
-    // 备用滚动方案
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   const scrollToDateMessage = async (_targetDate: string, targetMessages: any[]) => {
     console.log(`滚动到日期的消息（直接合并，无整页刷新）`);
 
@@ -337,7 +323,7 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
 
       {/* 统一的悬浮按钮 - 类似 ChatGPT，始终在同一位置 */}
       {/* Mobile top header */}
-      <div className="z-40 bg-background/80 border-b border-default-200 px-3 py-2 flex items-center">
+      <div className="z-40 bg-background/80 border-b border-default-200 px-3 py-2 flex items-center justify-between">
         <Button
           isIconOnly
           size="sm"
@@ -355,16 +341,46 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
             <Calendar className="w-4 h-4" />
           )}
         </Button>
+
+        <Button
+          isIconOnly
+          size="sm"
+          variant="flat"
+          color={isTodoPanelExpanded ? "default" : "primary"}
+          onPress={toggleTodoPanel}
+          className={`shadow-sm transition-all ${isTodoPanelExpanded
+            ? 'bg-background/80 hover:bg-default-100'
+            : 'bg-primary/10 hover:bg-primary/20'
+            }`}
+        >
+          <ListTodo className="w-4 h-4" />
+        </Button>
       </div>
 
       {/* Mobile DatePanel Drawer */}
       {isMobile && (
         <Drawer isOpen={isDatePanelExpanded} onClose={toggleDatePanel} placement="left">
           <DrawerContent>
-            <DatePanel
-              onDateSelect={handleDateSelect}
-              selectedDate={selectedDate}
-            />
+            <div className="h-full bg-default-50 border-r border-default-200">
+              <DatePanel
+                onDateSelect={handleDateSelect}
+                selectedDate={selectedDate}
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* Mobile TodoPanel Drawer */}
+      {isMobile && (
+        <Drawer isOpen={isTodoPanelExpanded} onClose={toggleTodoPanel} placement="right" size="lg">
+          <DrawerContent>
+            <div className="h-full bg-default-50 border-l border-default-200">
+              {/* 移动端直接复用 DesktopTodoPanel，但通过样式控制默认展开 */}
+              <div className="h-full w-full [&>div]:w-full [&>div]:!w-full [&_button.absolute]:hidden">
+                <DesktopTodoPanel todos={todos} onRefresh={refreshData} />
+              </div>
+            </div>
           </DrawerContent>
         </Drawer>
       )}
@@ -447,7 +463,7 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
                   const safeParts = Array.isArray(m?.parts) ? m.parts : [];
                   return (
                     <div
-                      key={`message-${m?.id || m?.role || index}-${index}`}
+                      key={`${m?.id ?? 'message'}-${index}`}
                       data-message-id={m?.id || `message-${index}`}
                       className={`flex gap-2 lg:gap-3 ${m?.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                     >
@@ -475,28 +491,39 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
                                 );
                               case 'reasoning':
                                 return (
-                                  <div key={`reasoning-${index}`} className="mt-2 p-3 rounded-lg bg-blue-50/50 border border-blue-200 text-sm w-full">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span>🤔</span>
-                                      <span className="font-semibold text-blue-700">思考中...</span>
-                                      {part.state === 'streaming' && (
-                                        <div className="flex gap-1">
-                                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                  <Accordion variant="shadow" className="mt-2">
+                                    <AccordionItem
+                                      key={`reasoning-${index}`}
+                                      aria-label="Reasoning"
+                                      title={
+                                        <div className="flex items-center gap-2">
+                                          <span>🤔</span>
+                                          <span className="font-semibold text-blue-700">
+                                            {part.state === 'streaming' ? '思考中...' : '思考过程'}
+                                          </span>
+                                          {part.state === 'streaming' && (
+                                            <div className="flex gap-1">
+                                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
-                                    <div className="text-blue-800 opacity-90 italic">
-                                      <Streamdown
-                                        plugins={plugins}
-                                        isAnimating={part.state === 'streaming'}
-                                        className="prose-blue text-sm"
-                                      >
-                                        {part.text}
-                                      </Streamdown>
-                                    </div>
-                                  </div>
+                                      }
+                                    >
+                                      <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-200 text-sm w-full">
+                                        <div className="text-blue-800 opacity-90 italic">
+                                          <Streamdown
+                                            plugins={plugins}
+                                            isAnimating={part.state === 'streaming'}
+                                            className="prose-blue text-sm"
+                                          >
+                                            {part.text}
+                                          </Streamdown>
+                                        </div>
+                                      </div>
+                                    </AccordionItem>
+                                  </Accordion>
                                 );
                               case 'tool-call':
                               case 'tool-call-streaming': {
@@ -640,12 +667,7 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
               </Button>
             </div>
           </div>
-          {/* Mobile Todo panel */}
-          <div className="flex lg:hidden border-t border-default-200 bg-default-50">
-            <div className="w-full">
-              <TodoCard todos={todos} onRefresh={refreshData} />
-            </div>
-          </div>
+          {/* Mobile Todo panel removed, moved to drawer */}
           <div className="hidden lg:flex justify-center py-2">
             <span className="text-xs text-default-400">Nota can make mistakes. Check important info.</span>
           </div>
@@ -653,10 +675,8 @@ export function ChatInterface({ chatId, initialMessages, memories }: ChatInterfa
 
 
         {/* 右侧工具面板 - 在移动端隐藏 */}
-        <div className="hidden lg:flex w-80 min-w-[20rem] flex-shrink-0 flex-col overflow-y-auto border-l border-default-200">
-          <div className="bg-default-50 h-full">
-            <TodoCard todos={todos} onRefresh={refreshData} />
-          </div>
+        <div className="hidden lg:flex h-full">
+          <DesktopTodoPanel todos={todos} onRefresh={refreshData} />
         </div>
       </div>
     </div >

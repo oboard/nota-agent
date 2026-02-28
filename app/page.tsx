@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getTodos, getRecentMemories } from "./actions";
+import { DesktopTodoPanel } from "@/components/desktop-todo-panel";
 import { TodoCard } from "@/components/todo-card";
 import { AccordionTabs } from "@/components/accordion-tabs";
 import { TodoData } from "@/lib/storage";
@@ -39,14 +40,8 @@ export default function Home() {
     <div className="flex flex-col lg:flex-row w-full h-full lg:h-[calc(100vh-4rem)] gap-0 lg:gap-4 md:p-4 bg-background overflow-hidden lg:overflow-visible">
       {/* Desktop layout */}
       <div className="hidden lg:flex w-full h-full gap-4">
-        <div className="w-1/3 flex-shrink-0 flex flex-col overflow-visible">
-          <TodoCard
-            todos={todos}
-            onRefresh={refreshData}
-            onMobileExpandChange={setIsMobileTodoExpanded}
-          />
-        </div>
-        <div className="w-2/3 flex-1 flex flex-col overflow-hidden h-full">
+        <DesktopTodoPanel todos={todos} onRefresh={refreshData} />
+        <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
           {/* 主页简介内容 */}
           <Card className="w-full h-full">
             <CardHeader className="px-6 py-4">
