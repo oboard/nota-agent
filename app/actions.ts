@@ -1,10 +1,39 @@
 "use server";
 
 import { storage } from "@/lib/storage";
-import { ChatStorage, ChatData } from "@/lib/chat-storage";
+import { ChatStorage } from "@/lib/chat-storage";
 import { revalidatePath } from "next/cache";
 import { readFile, readdir } from 'fs/promises';
 import path from 'path';
+
+/**
+ * 解析文件内容为 messages 数组，兼容旧格式（ChatData 数组）与新格式（messages 数组）
+ */
+function parseMessagesFromContent(content: string): any[] {
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed)) {
+      if (parsed.length > 0 && typeof parsed[0] === 'object' && (parsed[0] as any)?.messages) {
+        return (parsed as any[]).flatMap((c) =>
+          Array.isArray((c as any).messages) ? (c as any).messages : []
+        );
+      }
+      return parsed as any[];
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return [];
+}
+
+async function readMessagesFromFile(filePath: string): Promise<any[]> {
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    return parseMessagesFromContent(content);
+  } catch {
+    return [];
+  }
+}
 
 // Todo Actions
 export async function getTodos() {
@@ -122,8 +151,8 @@ export async function loadChat(page: number = 1, pageSize: number = 20) {
 
 export async function saveChat(messages: any[]) {
   const chatStorage = new ChatStorage();
-  // 采用全局唯一会话存储，不再区分 chatId
-  await chatStorage.saveChat('global', messages);
+  // 每日文件仅存 messages 数组
+  await chatStorage.saveChat(messages);
   revalidatePath("/");
 }
 
@@ -185,9 +214,8 @@ export async function getAvailableDates() {
       const dateStr = `${match[1]}-${match[2]}-${match[3]}`;
       let chatCount = 0;
       try {
-        const content = await readFile(path.join(dataDir, file), 'utf-8');
-        const chats: ChatData[] = JSON.parse(content);
-        chatCount = chats.reduce((sum, c) => sum + (c.messages?.length || 0), 0);
+        const messages = await readMessagesFromFile(path.join(dataDir, file));
+        chatCount = messages.length;
       } catch {
         // 忽略读取失败，保留日期项
       }
@@ -214,10 +242,7 @@ export async function scrollToDate(targetDate: string) {
   const filePath = path.join(dataDir, fileName);
 
   try {
-    const content = await readFile(filePath, 'utf-8');
-    const chats: ChatData[] = JSON.parse(content);
-    const messages = chats.flatMap(c => c.messages || []);
-
+    const messages = await readMessagesFromFile(filePath);
     return {
       messages,
       hasMore: false

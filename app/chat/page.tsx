@@ -98,12 +98,10 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-full w-full bg-background">
-      <ChatInterface
-        chatId={chatId}
-        initialMessages={initialMessages}
-        memories={memories}
-      />
-    </div>
+    <ChatInterface
+      chatId={chatId}
+      initialMessages={initialMessages}
+      memories={memories}
+    />
   );
 }

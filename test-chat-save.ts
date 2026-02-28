@@ -1,4 +1,4 @@
-import { chatStorage } from './lib/chat-storage';
+import { ChatStorage } from './lib/chat-storage';
 import { UIMessage } from 'ai';
 
 async function testChatSave() {
@@ -6,6 +6,7 @@ async function testChatSave() {
 
   try {
     // 创建新聊天
+    const chatStorage = new ChatStorage();
     const chatId = await chatStorage.createChat();
     console.log(`创建聊天: ${chatId}`);
 
@@ -48,7 +49,7 @@ async function testChatSave() {
     console.log('消息保存成功');
 
     // 验证保存结果
-    const loadedMessages = await chatStorage.loadChat(chatId);
+    const loadedMessages = await chatStorage.loadChat(1, 20);
     console.log(`加载消息数量: ${loadedMessages.length}`);
     console.log('第一条消息:', (loadedMessages[0]?.parts[0] as any)?.text || loadedMessages[0]?.parts[0]);
     console.log('最后一条消息:', (loadedMessages[loadedMessages.length - 1]?.parts[0] as any)?.text || loadedMessages[loadedMessages.length - 1]?.parts[0]);

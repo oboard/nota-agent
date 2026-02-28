@@ -4,13 +4,6 @@ import { existsSync, mkdirSync } from 'fs';
 import { writeFile, readFile, readdir } from 'fs/promises';
 import path from 'path';
 
-export interface ChatData {
-  id: string;
-  messages: UIMessage[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export class ChatStorage {
   private dataDir: string;
 
@@ -53,89 +46,84 @@ export class ChatStorage {
   }
 
   /**
-   * 批量标准化消息
+   * 批量标准化消息，并对相同 id 保留 createdAt 最新的版本，最终按时间排序
    */
   private normalizeMessages(messages: any[] = []): UIMessage[] {
-    return messages.map((msg) => this.normalizeMessage(msg));
+    const normalized = messages.map((msg) => this.normalizeMessage(msg));
+    const deduped = new Map<string, UIMessage>();
+
+    for (const msg of normalized) {
+      const key = msg.id;
+      if (!key) continue;
+
+      const existing = deduped.get(key);
+      if (!existing) {
+        deduped.set(key, msg);
+        continue;
+      }
+
+      const existingTime = new Date((existing as any).createdAt ?? 0).getTime();
+      const currentTime = new Date((msg as any).createdAt ?? 0).getTime();
+
+      if (currentTime >= existingTime) {
+        deduped.set(key, msg);
+      }
+    }
+
+    return Array.from(deduped.values()).sort((a, b) => {
+      const timeA = new Date((a as any).createdAt ?? 0).getTime();
+      const timeB = new Date((b as any).createdAt ?? 0).getTime();
+      return timeA - timeB;
+    });
   }
 
   /**
-   * 创建新的聊天 - 优先复用同一天的活跃聊天
+   * 解析文件内容，兼容旧格式（ChatData 数组）与新格式（消息数组）
+   * migrated=true 表示读到旧格式并需要回写为新格式
+   */
+  private readMessagesFromContent(content: string): { messages: UIMessage[]; migrated: boolean } {
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        // 旧格式：[{ id, messages, createdAt, updatedAt }]
+        if (parsed.length > 0 && typeof parsed[0] === 'object' && (parsed[0] as any)?.messages) {
+          const msgs = (parsed as any[]).flatMap((c) => Array.isArray((c as any).messages) ? (c as any).messages : []);
+          return { messages: this.normalizeMessages(msgs), migrated: true };
+        }
+        // 新格式：消息数组
+        return { messages: this.normalizeMessages(parsed as any[]), migrated: false };
+      }
+    } catch (error) {
+      // ignore parse errors
+    }
+    return { messages: [], migrated: false };
+  }
+
+  private async readMessagesFromFile(filePath: string): Promise<UIMessage[]> {
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      const { messages, migrated } = this.readMessagesFromContent(content);
+      if (migrated) {
+        await writeFile(filePath, JSON.stringify(messages, null, 2));
+      }
+      return messages;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 创建聊天：不再写入文件，仅确保目录存在并返回固定 chatId（用于前端 key）
    */
   async createChat(): Promise<string> {
-    const todayFile = this.getTodayFileName();
-    const filePath = this.getFilePath(todayFile);
-
-    // 确保目录存在
     if (!existsSync(this.dataDir)) {
       mkdirSync(this.dataDir, { recursive: true });
     }
-
-    // 读取现有的聊天数据
-    let existingChats: ChatData[] = [];
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      existingChats = JSON.parse(content);
-    } catch (error) {
-      // 文件不存在或解析失败，创建新的空数组
-    }
-
-    // 检查今天是否已有活跃的聊天（有消息的聊天）
-    const activeChats = existingChats.filter(
-      (chat) => chat.messages && chat.messages.length > 0,
-    );
-
-    if (activeChats.length > 0) {
-      // 按更新时间排序，获取最新的活跃聊天
-      const latestActiveChat = activeChats.sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )[0];
-
-      console.log(`复用今天已有的活跃聊天: ${latestActiveChat.id}`);
-      return latestActiveChat.id;
-    }
-
-    // 如果没有活跃聊天，检查是否有空聊天（无消息的聊天）
-    const emptyChats = existingChats.filter(
-      (chat) => !chat.messages || chat.messages.length === 0,
-    );
-
-    if (emptyChats.length > 0) {
-      // 复用最新的空聊天，并更新其时间戳
-      const latestEmptyChat = emptyChats.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )[0];
-
-      const now = new Date().toISOString();
-      latestEmptyChat.updatedAt = now;
-      latestEmptyChat.createdAt = now; // 也更新创建时间，让它成为"新"的聊天
-
-      // 保存更新
-      await writeFile(filePath, JSON.stringify(existingChats, null, 2));
-
-      console.log(`复用今天已有的空聊天: ${latestEmptyChat.id}`);
-      return latestEmptyChat.id;
-    }
-
-    // 如果没有可用的聊天，创建新的
-    const id = generateId();
-    const now = new Date().toISOString();
-    const newChat: ChatData = {
-      id,
-      messages: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    existingChats.push(newChat);
-    await writeFile(filePath, JSON.stringify(existingChats, null, 2));
-
-    console.log(`创建新的聊天: ${id}`);
-    return id;
+    return 'global';
   }
 
   /**
-   * 加载所有历史聊天消息
+   * 加载所有历史聊天消息（按时间分页，跨文件聚合）
    */
   async loadChat(page: number = 1, pageSize: number = 20): Promise<UIMessage[]> {
     const chatFiles = await this.getAllChatFiles();
@@ -143,15 +131,8 @@ export class ChatStorage {
 
     for (const file of chatFiles) {
       const filePath = this.getFilePath(file);
-      try {
-        const content = await readFile(filePath, 'utf-8');
-        const chats: ChatData[] = JSON.parse(content);
-        chats.forEach(chat => {
-          allMessages.push(...this.normalizeMessages(chat.messages));
-        });
-      } catch (error) {
-        console.error(`Failed to read chat file ${file}:`, error);
-      }
+      const msgs = await this.readMessagesFromFile(filePath);
+      allMessages.push(...msgs);
     }
 
     // 按时间戳排序消息并分页
@@ -197,9 +178,9 @@ export class ChatStorage {
   }
 
   /**
-   * 保存聊天消息 - 始终保存到今天的文件
+   * 保存聊天消息 - 每日文件仅存消息数组（兼容旧文件合并后写回新格式）
    */
-  async saveChat(chatId: string, messages: UIMessage[]): Promise<void> {
+  async saveChat(messages: UIMessage[]): Promise<void> {
     const todayFile = this.getTodayFileName();
     const filePath = this.getFilePath(todayFile);
 
@@ -208,76 +189,9 @@ export class ChatStorage {
       mkdirSync(this.dataDir, { recursive: true });
     }
 
-    const normalizedMessages = this.normalizeMessages(messages);
+    const existingMessages = await this.readMessagesFromFile(filePath);
+    const merged = this.normalizeMessages([...existingMessages, ...(messages || [])]);
 
-    // 读取今天的聊天数据
-    let todayChats: ChatData[] = [];
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      todayChats = JSON.parse(content);
-    } catch (error) {
-      // 文件不存在或解析失败，创建新的空数组
-    }
-
-    // 查找聊天是否已存在于今天文件中
-    const chatIndex = todayChats.findIndex((c) => c.id === chatId);
-    const now = new Date().toISOString();
-
-    if (chatIndex >= 0) {
-      // 更新今天文件中的聊天
-      todayChats[chatIndex] = {
-        ...todayChats[chatIndex],
-        messages: normalizedMessages,
-        updatedAt: now,
-      };
-    } else {
-      // 查找聊天是否存在于历史文件中
-      let foundInHistory = false;
-
-      try {
-        const files = await readdir(this.dataDir);
-        const jsonFiles = files
-          .filter((file) => file.endsWith('.json') && file !== todayFile)
-          .sort()
-          .reverse();
-
-        for (const file of jsonFiles) {
-          try {
-            const filePath = this.getFilePath(file);
-            const content = await readFile(filePath, 'utf-8');
-            const chats: ChatData[] = JSON.parse(content);
-            const chat = chats.find((c) => c.id === chatId);
-
-            if (chat) {
-              // 找到历史聊天，复制到今天文件并更新
-              todayChats.push({
-                ...chat,
-                messages: normalizedMessages,
-                updatedAt: now,
-              });
-              foundInHistory = true;
-              break;
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-      } catch (error) {
-        console.error('Error searching for chat in history files:', error);
-      }
-
-      // 如果在历史文件中也找不到，创建新的聊天
-      if (!foundInHistory) {
-        todayChats.push({
-          id: chatId,
-          messages: normalizedMessages,
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
-    }
-
-    // 保存回今天的文件
-    await writeFile(filePath, JSON.stringify(todayChats, null, 2));
+    await writeFile(filePath, JSON.stringify(merged, null, 2));
   }
 }

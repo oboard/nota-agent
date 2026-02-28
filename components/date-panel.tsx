@@ -99,7 +99,7 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
   }
 
   return (
-    <div className="w-80 flex-shrink-0 h-full animate-in slide-in-from-left duration-300">
+    <div className="flex-shrink-0 h-full animate-in slide-in-from-left duration-300">
       <div className="h-full bg-default-50 border-r border-default-200 flex flex-col">
         {/* Header - 移除收起按钮，使用统一的悬浮按钮 */}
         <div className="flex items-center p-4 border-b border-default-200 bg-default-100">
