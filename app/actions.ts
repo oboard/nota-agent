@@ -38,14 +38,20 @@ async function readMessagesFromFile(filePath: string): Promise<any[]> {
 // Todo Actions
 export async function getTodos() {
   const todos = await storage.getTodos();
+  const toTime = (v: any) => v instanceof Date ? v.getTime() : v ? new Date(v).getTime() : 0;
+
   return todos.sort((a, b) => {
     // 按完成状态、优先级、开始时间、创建时间排序
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     if (a.priority !== b.priority) return b.priority - a.priority;
-    if (a.startDateTime && b.startDateTime) return a.startDateTime.getTime() - b.startDateTime.getTime();
+
+    const aStart = toTime(a.startDateTime);
+    const bStart = toTime(b.startDateTime);
+    if (a.startDateTime && b.startDateTime) return aStart - bStart;
     if (a.startDateTime && !b.startDateTime) return -1;
     if (!a.startDateTime && b.startDateTime) return 1;
-    return b.createdAt.getTime() - a.createdAt.getTime();
+
+    return toTime(b.createdAt) - toTime(a.createdAt);
   });
 }
 

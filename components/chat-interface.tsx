@@ -583,7 +583,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                   }
                                   if (part.type.startsWith('step-')) {
                                     const step = part.type.replace(/^step-/, '');
-                                    return (<></>
+                                    return (<div key={`step-${step}-${index}`}></div>
                                       // <div key={`step-${step}-${index}`} className="mt-2 p-2 rounded-lg bg-default-50 border border-default-200 text-xs w-full">
                                       //   <div className="flex items-center gap-2">
                                       //     <span>🧩</span>
