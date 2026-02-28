@@ -38,8 +38,7 @@ export const DateItemButton = memo(DateItemButtonImpl, (prev, next) =>
   prev.date === next.date &&
   prev.label === next.label &&
   prev.subtitle === next.subtitle &&
-  prev.selected === next.selected &&
-  prev.onPress === next.onPress
+  prev.selected === next.selected
 );
 
 export type { DateItemButtonProps };
