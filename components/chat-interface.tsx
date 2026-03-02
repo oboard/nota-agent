@@ -521,9 +521,9 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                       className={`flex gap-2 lg:gap-3 ${m?.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                     >
                       <MemoizedAvatar role={m?.role} />
-                      <div className={`flex flex-col max-w-[85%] lg:max-w-[60%] xl:max-w-[500px] ${m?.role === "user" ? "items-end" : "items-start"}`}>
+                      <div className={`flex flex-col max-w-[85%] lg:max-w-[60%] xl:max-w-[500px] min-w-0 ${m?.role === "user" ? "items-end" : "items-start"}`}>
                         <div
-                          className={`rounded-2xl space-y-4 px-3 py-2 lg:px-4 lg:py-3 text-sm lg:text-base ${m?.role === "user"
+                          className={`rounded-2xl space-y-4 px-3 py-2 lg:px-4 lg:py-3 text-sm lg:text-base max-w-full overflow-hidden ${m?.role === "user"
                             ? "bg-default-200 text-foreground rounded-tr-none"
                             : "bg-default-100 text-foreground rounded-tl-none shadow-sm"
                             }`}
@@ -533,14 +533,15 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                             switch (part.type) {
                               case 'text':
                                 return (
-                                  <Streamdown
-                                    key={index}
-                                    plugins={plugins}
-                                    isAnimating={status === 'streaming' && m.role === 'assistant' && index === m.parts.length - 1}
-                                    className={m.role === "user" ? "prose-invert" : "prose-neutral"}
-                                  >
-                                    {part.text}
-                                  </Streamdown>
+                                  <div key={index} className="min-w-0 overflow-hidden break-words">
+                                    <Streamdown
+                                      plugins={plugins}
+                                      isAnimating={status === 'streaming' && m.role === 'assistant' && index === m.parts.length - 1}
+                                      className={`${m.role === "user" ? "prose-invert" : "prose-neutral"} prose-pre:overflow-x-auto prose-code:break-all`}
+                                    >
+                                      {part.text}
+                                    </Streamdown>
+                                  </div>
                                 );
                               case 'reasoning':
                                 return (
