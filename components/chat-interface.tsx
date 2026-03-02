@@ -9,6 +9,7 @@ import { Chip } from "@heroui/chip";
 import { Avatar } from "@heroui/avatar";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Drawer, DrawerContent } from "@heroui/drawer";
+import { Spinner } from "@heroui/spinner";
 import { addMemory, getTodos } from "@/app/actions";
 import { DefaultChatTransport, getToolName, lastAssistantMessageIsCompleteWithToolCalls, generateId } from "ai";
 import { Streamdown } from 'streamdown';
@@ -22,7 +23,7 @@ import { addTimestampSeparators } from '@/lib/chat-utils';
 import { DatePanel } from '@/components/date-panel';
 import { TodoCard } from "./todo-card";
 import { DesktopTodoPanel } from "./desktop-todo-panel";
-import { Calendar, ChevronLeft, ListTodo } from 'lucide-react';
+import { Calendar, ChevronLeft, ListTodo, ImageIcon } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
 
@@ -65,6 +66,8 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
   const { isDatePanelExpanded, toggleDatePanel } = useDatePanelStore();
   const { isTodoPanelExpanded, toggleTodoPanel, setExpanded: setTodoPanelExpanded } = useTodoPanelStore();
   const [isMobile, setIsMobile] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1024px)');
@@ -233,6 +236,56 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
     await addMemory(input);
     setInput('');
   }, [input]);
+
+  // 处理图片上传和 OCR 识别
+  const handleImageUpload = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 检查是否是图片文件
+    if (!file.type.startsWith('image/')) {
+      console.error('请选择图片文件');
+      return;
+    }
+
+    setIsOcrLoading(true);
+    try {
+      // 调用后端 OCR API（会自动下载所需语言包）
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('lang', 'chi_sim+eng');
+
+      const response = await fetch('/api/ocr', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'OCR 识别失败');
+      }
+
+      // 将识别的文字添加到输入框
+      const recognizedText = result.text.trim();
+      if (recognizedText) {
+        setInput((prev) => prev ? `${prev}\n${recognizedText}` : recognizedText);
+      } else {
+        console.log('未识别到文字');
+      }
+    } catch (error) {
+      console.error('OCR 识别失败:', error);
+      alert(error instanceof Error ? error.message : 'OCR 识别失败，请稍后重试');
+    } finally {
+      setIsOcrLoading(false);
+      // 清空文件输入，允许重复选择同一文件
+      e.target.value = '';
+    }
+  }, []);
 
   const handleDateSelect = async (date: string) => {
     setSelectedDate(date);
@@ -644,7 +697,32 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                 }
               }, [handleSend])}
             />
+            {/* 隐藏的文件输入 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
             <div className="absolute right-8 bottom-8 flex gap-1">
+              {/* OCR 图片上传按钮 */}
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                color="default"
+                onPress={handleImageUpload}
+                className="text-default-500 hover:text-primary"
+                isDisabled={isOcrLoading || status === "streaming"}
+                title="上传图片进行 OCR 识别"
+              >
+                {isOcrLoading ? (
+                  <Spinner size="sm" color="default" />
+                ) : (
+                  <ImageIcon className="w-4 h-4" />
+                )}
+              </Button>
               <Button
                 isIconOnly
                 size="sm"

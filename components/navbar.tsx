@@ -27,7 +27,7 @@ import {
   Logo,
 } from "@/components/icons";
 import { getAvailableDates } from "@/app/actions";
-import { Calendar } from "lucide-react";
+import { Calendar, Settings } from "lucide-react";
 import { useDatePanelStore } from "@/lib/stores/date-panel-store";
 
 interface DateItem {
@@ -210,6 +210,9 @@ export const Navbar = () => {
           <Link isExternal aria-label="Discord" href={siteConfig.links.discord}>
             <DiscordIcon className="text-default-500" />
           </Link> */}
+          <NextLink href="/settings" aria-label="Settings">
+            <Settings className="text-default-500 hover:text-primary transition-colors" />
+          </NextLink>
           <Link isExternal aria-label="Github" href={siteConfig.links.github}>
             <GithubIcon className="text-default-500" />
           </Link>
@@ -220,6 +223,9 @@ export const Navbar = () => {
       </NavbarContent>
 
       <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
+        <NextLink href="/settings" aria-label="Settings">
+          <Settings className="text-default-500 hover:text-primary transition-colors" />
+        </NextLink>
         <Link isExternal aria-label="Github" href={siteConfig.links.github}>
           <GithubIcon className="text-default-500" />
         </Link>
