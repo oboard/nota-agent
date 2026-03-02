@@ -178,7 +178,7 @@ export class ChatStorage {
   }
 
   /**
-   * 保存聊天消息 - 每日文件仅存消息数组（兼容旧文件合并后写回新格式）
+   * 保存聊天消息 - 只保存今天创建的消息到今天的文件
    */
   async saveChat(messages: UIMessage[]): Promise<void> {
     const todayFile = this.getTodayFileName();
@@ -189,8 +189,21 @@ export class ChatStorage {
       mkdirSync(this.dataDir, { recursive: true });
     }
 
+    // 获取今天的日期字符串用于比较
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    // 过滤出今天的消息
+    const todayMessages = (messages || []).filter((msg: any) => {
+      const createdAt = msg.createdAt;
+      if (!createdAt) return true; // 没有时间戳的消息默认保存到今天
+      const msgDate = new Date(createdAt);
+      const msgStr = `${msgDate.getFullYear()}-${String(msgDate.getMonth() + 1).padStart(2, '0')}-${String(msgDate.getDate()).padStart(2, '0')}`;
+      return msgStr === todayStr;
+    });
+
     const existingMessages = await this.readMessagesFromFile(filePath);
-    const merged = this.normalizeMessages([...existingMessages, ...(messages || [])]);
+    const merged = this.normalizeMessages([...existingMessages, ...todayMessages]);
 
     await writeFile(filePath, JSON.stringify(merged, null, 2));
   }

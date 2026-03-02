@@ -523,7 +523,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                       <MemoizedAvatar role={m?.role} />
                       <div className={`flex flex-col max-w-[85%] lg:max-w-[60%] xl:max-w-[500px] min-w-0 ${m?.role === "user" ? "items-end" : "items-start"}`}>
                         <div
-                          className={`rounded-2xl space-y-4 px-3 py-2 lg:px-4 lg:py-3 text-sm lg:text-base max-w-full overflow-hidden ${m?.role === "user"
+                          className={`rounded-2xl space-y-1.5 px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base max-w-full overflow-hidden ${m?.role === "user"
                             ? "bg-default-200 text-foreground rounded-tr-none"
                             : "bg-default-100 text-foreground rounded-tl-none shadow-sm"
                             }`}
@@ -537,7 +537,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                     <Streamdown
                                       plugins={plugins}
                                       isAnimating={status === 'streaming' && m.role === 'assistant' && index === m.parts.length - 1}
-                                      className={`${m.role === "user" ? "prose-invert" : "prose-neutral"} prose-pre:overflow-x-auto prose-code:break-all`}
+                                      className={`${m.role === "user" ? "prose-invert" : "prose-neutral"} prose-pre:overflow-x-auto prose-code:break-all prose-p:my-1 prose-headings:my-2`}
                                     >
                                       {part.text}
                                     </Streamdown>
@@ -547,32 +547,33 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                 return (
                                   <Accordion
                                     key={index}
-                                    variant="shadow" className="mt-2">
+                                    variant="bordered"
+                                    className="mt-1">
                                     <AccordionItem
                                       key={`reasoning-${index}`}
                                       aria-label="Reasoning"
                                       title={
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 text-xs">
                                           <span>🤔</span>
-                                          <span className="font-semibold text-blue-700">
+                                          <span className="font-medium text-blue-600">
                                             {part.state === 'streaming' ? '思考中...' : '思考过程'}
                                           </span>
                                           {part.state === 'streaming' && (
-                                            <div className="flex gap-1">
-                                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                            <div className="flex gap-0.5">
+                                              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                                             </div>
                                           )}
                                         </div>
                                       }
                                     >
-                                      <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-200 text-sm w-full">
-                                        <div className="text-blue-800 opacity-90 italic">
+                                      <div className="p-2 rounded bg-blue-50/50 border border-blue-100 text-xs w-full">
+                                        <div className="text-blue-700 opacity-90 italic">
                                           <Streamdown
                                             plugins={plugins}
                                             isAnimating={part.state === 'streaming'}
-                                            className="prose-blue text-sm"
+                                            className="prose-blue text-xs prose-p:my-0.5"
                                           >
                                             {part.text}
                                           </Streamdown>
@@ -586,25 +587,25 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                 const toolCallId = part.toolCallId;
                                 const toolName = getToolName(part);
                                 return (
-                                  <div key={toolCallId} className="mt-2 p-3 rounded-lg bg-background/50 border border-default-200/50 text-sm w-full">
-                                    <div className="flex items-center gap-2 mb-1">
+                                  <div key={toolCallId} className="mt-1 p-2 rounded bg-background/50 border border-default-200/50 text-xs w-full">
+                                    <div className="flex items-center gap-1.5">
                                       <span>{toolName === "createTodo" ? "✅" : "⚙️"}</span>
-                                      <span className="font-semibold opacity-80">{toolName}</span>
-                                      <Chip size="sm" variant="flat" color="primary" className="h-5 text-xs">Running</Chip>
+                                      <span className="font-medium opacity-80">{toolName}</span>
+                                      <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px]">Running</Chip>
                                     </div>
                                     {toolName === "createTodo" && part.output?.title && (
-                                      <div className="font-medium">{part.output.title}</div>
+                                      <div className="font-medium mt-0.5">{part.output.title}</div>
                                     )}
                                     {toolName === "saveMemory" && part.args?.content && (
-                                      <div className="italic opacity-80">"{part.args.content}"</div>
+                                      <div className="italic opacity-80 mt-0.5">"{part.args.content}"</div>
                                     )}
                                   </div>
                                 );
                               }
                               case 'tool-result':
                                 return (
-                                  <div key={part.toolCallId} className="mt-2 p-2 rounded-lg bg-success-50/50 border border-success-100 text-xs w-full">
-                                    <div className="flex items-center gap-2 text-success-600">
+                                  <div key={part.toolCallId} className="mt-1 p-1.5 rounded bg-success-50/50 border border-success-100 text-[10px] w-full">
+                                    <div className="flex items-center gap-1.5 text-success-600">
                                       <span>✓</span>
                                       <span>Completed: {part.toolName}</span>
                                     </div>
@@ -612,7 +613,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                 );
                               case 'tool-error':
                                 return (
-                                  <div key={part.toolCallId} className="mt-2 p-2 rounded-lg bg-danger-50/50 border border-danger-100 text-xs text-danger w-full">
+                                  <div key={part.toolCallId} className="mt-1 p-1.5 rounded bg-danger-50/50 border border-danger-100 text-[10px] text-danger w-full">
                                     Error: {part.errorText}
                                   </div>
                                 );
