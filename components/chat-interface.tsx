@@ -491,7 +491,9 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                 );
                               case 'reasoning':
                                 return (
-                                  <Accordion variant="shadow" className="mt-2">
+                                  <Accordion
+                                    key={index}
+                                    variant="shadow" className="mt-2">
                                     <AccordionItem
                                       key={`reasoning-${index}`}
                                       aria-label="Reasoning"
