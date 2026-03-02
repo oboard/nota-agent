@@ -77,12 +77,12 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                     </div>
                   ) : (
                     <>
-                      {/* 今日任务 */}
+                      {/* 今日任务 (使用本地时区比较) */}
                       {(() => {
                         const today = new Date();
-                        today.setHours(0, 0, 0, 0);
+                        const todayDateStr = today.toLocaleDateString();
                         const todayTodos = todos.filter(todo => !todo.completed &&
-                          todo.startDateTime && new Date(todo.startDateTime).setHours(0, 0, 0, 0) === today.getTime()
+                          todo.startDateTime && new Date(todo.startDateTime).toLocaleDateString() === todayDateStr
                         );
 
                         return todayTodos.length > 0 && (
@@ -107,9 +107,14 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                       className="mt-0.5"
                                     />
                                     <div className="flex-1 min-w-0 pt-0.5">
-                                      <h4 className="font-medium text-sm leading-snug text-foreground">
-                                        {todo.title}
-                                      </h4>
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-medium text-sm leading-snug text-foreground">
+                                          {todo.title}
+                                        </h4>
+                                        <span className="text-xs text-default-400 font-mono">
+                                          #{todo.id.substring(0, 6)}
+                                        </span>
+                                      </div>
                                       {todo.description && (
                                         <p className="text-xs mt-1.5 line-clamp-2 leading-relaxed text-default-600">
                                           {todo.description}
@@ -157,12 +162,12 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         );
                       })()}
 
-                      {/* 即将到来 */}
+                      {/* 即将到来 (使用本地时区比较) */}
                       {(() => {
                         const today = new Date();
-                        today.setHours(0, 0, 0, 0);
+                        const todayDateStr = today.toLocaleDateString();
                         const upcomingTodos = todos.filter(todo => !todo.completed &&
-                          todo.startDateTime && new Date(todo.startDateTime).setHours(0, 0, 0, 0) > today.getTime()
+                          todo.startDateTime && new Date(todo.startDateTime).toLocaleDateString() > todayDateStr
                         );
 
                         return upcomingTodos.length > 0 && (

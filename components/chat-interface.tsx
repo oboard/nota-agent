@@ -468,7 +468,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                       className={`flex gap-2 lg:gap-3 ${m?.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                     >
                       <MemoizedAvatar role={m?.role} />
-                      <div className={`flex flex-col max-w-[85%] lg:max-w-[75%] ${m?.role === "user" ? "items-end" : "items-start"}`}>
+                      <div className={`flex flex-col max-w-[85%] lg:max-w-[60%] xl:max-w-[500px] ${m?.role === "user" ? "items-end" : "items-start"}`}>
                         <div
                           className={`rounded-2xl space-y-4 px-3 py-2 lg:px-4 lg:py-3 text-sm lg:text-base ${m?.role === "user"
                             ? "bg-default-200 text-foreground rounded-tr-none"

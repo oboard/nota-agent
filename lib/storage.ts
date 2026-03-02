@@ -300,7 +300,29 @@ export class FileStorage {
                 throw err;
             }
 
-            let links: LinkMetadata[] = JSON.parse(content);
+            let links: LinkMetadata[] = [];
+            try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                    links = parsed;
+                } else {
+                    console.error('Invalid link metadata format: Expected array');
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error parsing link metadata:', error);
+                // 尝试修复常见的 JSON 格式问题
+                try {
+                    // 移除末尾可能的逗号
+                    const fixedContent = content.replace(/,\s*]/g, ']').replace(/,\s*}/g, '}');
+                    const parsed = JSON.parse(fixedContent);
+                    links = Array.isArray(parsed) ? parsed : [];
+                    console.log('Successfully fixed malformed JSON');
+                } catch (fixError) {
+                    console.error('Failed to fix malformed JSON:', fixError);
+                    return [];
+                }
+            }
 
             // 将 ISO 字符串转换回 Date 对象
             links = links.map(link => ({

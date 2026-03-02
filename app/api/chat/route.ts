@@ -71,6 +71,40 @@ export async function POST(req: Request) {
     apiKey: process.env.OPENAI_API_KEY,
   })(modelName)
 
+  const tools = [
+    {
+      name: "createTodo",
+      description: "Create a new TODO item with title, description, priority, and optional dates",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Title of the TODO item" },
+          description: { type: "string", description: "Description of the TODO item" },
+          priority: { type: "number", description: "Priority level (1-5)" },
+          startDateTime: { type: "string", format: "date-time", description: "Start date and time" },
+          endDateTime: { type: "string", format: "date-time", description: "End date and time" }
+        },
+        required: ["title"]
+      }
+    },
+    {
+      name: "updateTodo",
+      description: "Update an existing TODO item by ID",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "ID of the TODO to update (required)" },
+          newTitle: { type: "string", description: "New title for the TODO" },
+          description: { type: "string", description: "New description" },
+          priority: { type: "number", description: "New priority (1-5)" },
+          startDateTime: { type: "string", format: "date-time", description: "New start date and time" },
+          completed: { type: "boolean", description: "Whether the TODO is completed" }
+        },
+        required: ["id"]
+      }
+    }
+  ];
+
   // 获取上下文信息和技能
   const [recentMemories, currentTodos, availableSkills] = await Promise.all([
     getRecentMemories(),
@@ -86,18 +120,21 @@ export async function POST(req: Request) {
   当前已有记忆：
   ${recentMemories.map(m => `- [${m.createdAt}] ${m.content}`).join("\n")}
   
-  当前待办事项：
-  ${currentTodos}
+  当前待办事项（ID: 标题）：
+  ${currentTodos.map(t => `- ${t.id}: ${t.title}`).join("\n")}
   
   ${skillsPrompt}
   
   你的职责：
   1. 回答用户的问题或与用户对话。
   2. 智能管理待办事项：
+      - 首先检查当前待办事项列表，判断用户请求是创建新任务还是更新现有任务
       - 如果用户提到具体时间（几点、小时、分钟、时间段），使用 createTodo 工具，必须设置 startDateTime 和 endDateTime
       - 如果用户只说要做的事情但没有具体时间，使用 createSimpleTodo 工具
       - 如果用户表示完成了某个任务，使用 completeTodo 工具直接标记为完成
       - 如果用户说要删除某个任务，使用 deleteTodo 工具删除
+      - 如果用户想要修改现有任务（更改标题、描述、时间或优先级），必须使用 updateTodo 工具并通过ID指定任务，不允许通过标题匹配
+      - 始终在待办事项列表中向用户显示ID和标题，方便用户引用
       - 如果用户要修改任务信息，使用 updateTodo 工具更新
   3. 始终保持友善、简洁。
   4. 今天的日期是：${new Date().toLocaleDateString()}。
