@@ -254,24 +254,24 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
 
     setIsOcrLoading(true);
     try {
-      // 调用后端 OCR API（会自动下载所需语言包）
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('lang', 'chi_sim+eng');
+      // 读取文件为 ArrayBuffer
+      const buffer = await file.arrayBuffer();
 
-      const response = await fetch('/api/ocr', {
-        method: 'POST',
-        body: formData,
+      // 调用 Electron IPC 进行 OCR
+      // 使用 window.require 动态导入 electron，避免在 SSR 时报错
+      const { ipcRenderer } = window.require('electron');
+
+      const result = await ipcRenderer.invoke('ocr-request', {
+        imageBuffer: buffer,
+        lang: 'chi_sim+eng'
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.error || 'OCR 识别失败');
       }
 
       // 将识别的文字添加到输入框
-      const recognizedText = result.text.trim();
+      const recognizedText = result.text?.trim() || '';
       if (recognizedText) {
         setInput((prev) => prev ? `${prev}\n${recognizedText}` : recognizedText);
       } else {

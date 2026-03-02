@@ -1,9 +1,11 @@
-ignoredBuiltDependencies:
+ignoredBuiltDependencies: null
+
 onlyBuiltDependencies:
-  - better-sqlite3
   - '@heroui/shared-utils'
   - '@tailwindcss/oxide'
+  - better-sqlite3
   - electron
   - esbuild
   - sharp
+  - tesseract.js
   - unrs-resolver

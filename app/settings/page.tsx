@@ -35,8 +35,8 @@ export default function SettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/ocr/status');
-      const data = await response.json();
+      const { ipcRenderer } = window.require('electron');
+      const data = await ipcRenderer.invoke('ocr-get-status');
       setOcrStatus(data);
     } catch (err) {
       setError('获取 OCR 状态失败');
@@ -54,13 +54,8 @@ export default function SettingsPage() {
     setInstallingLang(langCode);
 
     try {
-      const response = await fetch('/api/ocr/language', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ langCode }),
-      });
-
-      const data = await response.json();
+      const { ipcRenderer } = window.require('electron');
+      const data = await ipcRenderer.invoke('ocr-download-lang', langCode);
 
       if (data.success) {
         await fetchOCRStatus();
@@ -77,13 +72,8 @@ export default function SettingsPage() {
 
   const handleUninstallLanguage = async (langCode: string) => {
     try {
-      const response = await fetch('/api/ocr/language', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ langCode }),
-      });
-
-      const data = await response.json();
+      const { ipcRenderer } = window.require('electron');
+      const data = await ipcRenderer.invoke('ocr-delete-lang', langCode);
 
       if (data.success) {
         await fetchOCRStatus();
