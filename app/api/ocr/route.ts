@@ -2,13 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ocrManager } from '@/lib/ocr-manager';
 import Tesseract from 'tesseract.js';
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
+// App Router 使用 route segment config
+export const maxDuration = 60; // 最大执行时间（秒）
 
 export async function POST(req: NextRequest) {
   try {
