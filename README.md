@@ -48,9 +48,9 @@ cp .env.example .env
 
 ```env
 DATABASE_URL="file:./data/nota-agent.db"
-OPENAI_API_BASE="https://api.openai.com/v1" # 或其他兼容接口地址
-OPENAI_API_KEY="your-api-key"
-AI_MODEL_NAME="gpt-4o" # 指定使用的模型名称，例如 gpt-4o, Kimi-K2.5 等
+MODEL_API_BASE="https://api.openai.com/v1" # 或其他兼容接口地址
+MODEL_API_KEY="your-api-key"
+CHAT_MODEL_NAME="gpt-4o" # 指定使用的模型名称，例如 gpt-4o, Kimi-K2.5 等
 ```
 
 ### 4. 运行开发服务器

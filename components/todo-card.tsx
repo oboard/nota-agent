@@ -105,6 +105,27 @@ export function TodoCard({ todos, onRefresh, onMobileExpandChange }: TodoCardPro
                                     已完成
                                 </Chip>
                             )}
+
+                            {todo.links && Object.keys(todo.links).length > 0 && (
+                                <div className="flex items-center gap-1 flex-wrap">
+                                    {Object.entries(todo.links).map(([title, url]) => (
+                                        <Chip
+                                            key={url}
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            as="a"
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="cursor-pointer hover:bg-primary-100"
+                                            startContent="🔗"
+                                        >
+                                            {title}
+                                        </Chip>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 

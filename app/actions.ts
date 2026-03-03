@@ -62,6 +62,7 @@ export async function createTodo(data: {
   endDateTime?: Date;
   priority?: number;
   cron?: string;
+  links?: Record<string, string>;
 }) {
   const todo = await storage.saveTodo({
     title: data.title,
@@ -71,6 +72,7 @@ export async function createTodo(data: {
     priority: data.priority || 1,
     completed: false,
     cron: data.cron,
+    links: data.links,
   });
   revalidatePath("/");
   return todo;
@@ -88,6 +90,7 @@ export async function updateTodo(id: string, data: {
   endDateTime?: string;
   priority?: number;
   completed?: boolean;
+  links?: Record<string, string>;
 }) {
   // 获取所有 todos
   const todos = await storage.getTodos();
@@ -101,6 +104,7 @@ export async function updateTodo(id: string, data: {
     if (data.endDateTime !== undefined) todo.endDateTime = new Date(data.endDateTime);
     if (data.priority !== undefined) todo.priority = data.priority;
     if (data.completed !== undefined) todo.completed = data.completed;
+    if (data.links !== undefined) todo.links = data.links;
     todo.updatedAt = new Date();
 
     // 保存回存储

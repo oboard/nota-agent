@@ -3,19 +3,11 @@ import type { BrowserWindow as BrowserWindowType } from 'electron'
 import * as path from 'path'
 import { checkAndConsolidateMemories } from './memory-manager.ts'
 import { fileURLToPath } from 'url'
-import { createWorker } from 'tesseract.js'
 import * as os from 'os'
 import * as fs from 'fs'
-import { ocrManager } from '../lib/ocr-manager.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-// 确保 tessdata 目录存在
-const TESSDATA_PATH = path.join(os.homedir(), '.nota-agent', 'tessdata')
-if (!fs.existsSync(TESSDATA_PATH)) {
-  fs.mkdirSync(TESSDATA_PATH, { recursive: true })
-}
 
 const createContextMenu = () => {
   return Menu.buildFromTemplate([
@@ -124,60 +116,6 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-
-  // IPC 监听：OCR 请求
-  ipcMain.handle('ocr-request', async (event, { imageBuffer, lang = 'chi_sim+eng' }) => {
-    try {
-      console.log(`收到 OCR 请求，语言: ${lang}`)
-
-      // 确保语言包已下载
-      const langCodes = lang.split('+').filter(Boolean)
-      for (const code of langCodes) {
-        if (!ocrManager.isLanguageInstalled(code)) {
-          console.log(`自动下载语言包: ${code}`)
-          await ocrManager.downloadLanguage(code)
-        }
-      }
-
-      // 创建 worker
-      const worker = await createWorker(langCodes.join('+'), 1, {
-        logger: m => console.log(m),
-        langPath: ocrManager.getDataDir(),
-        cacheMethod: 'none',
-        gzip: false
-      })
-
-      // 识别
-      const ret = await worker.recognize(Buffer.from(imageBuffer))
-      const text = ret.data.text
-
-      // 清理
-      await worker.terminate()
-
-      return { success: true, text, confidence: ret.data.confidence }
-    } catch (error) {
-      console.error('OCR 失败:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      }
-    }
-  })
-
-  // IPC 监听：获取 OCR 状态
-  ipcMain.handle('ocr-get-status', async () => {
-    return ocrManager.getStatus()
-  })
-
-  // IPC 监听：下载语言包
-  ipcMain.handle('ocr-download-lang', async (event, langCode) => {
-    return ocrManager.downloadLanguage(langCode)
-  })
-
-  // IPC 监听：删除语言包
-  ipcMain.handle('ocr-delete-lang', async (event, langCode) => {
-    return ocrManager.deleteLanguage(langCode)
   })
 })
 

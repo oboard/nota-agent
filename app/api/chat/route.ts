@@ -1,9 +1,10 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { streamText, tool, generateObject, convertToModelMessages, generateText, type UIMessage } from "ai";
+import { streamText, tool, generateObject, convertToModelMessages, generateText, type UIMessage, generateId } from "ai";
 import { z } from "zod";
 import { createTodo, updateTodo, toggleTodo, deleteTodo, addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
 import { urlMetadataExtractor } from "@/lib/url-metadata";
 import { skillsManager } from "@/lib/skills-manager";
+import { TodoData } from "@/lib/storage";
 
 export const maxDuration = 30;
 
@@ -60,50 +61,17 @@ function isValidMemoryContent(content: string): boolean {
 }
 
 export async function POST(req: Request) {
-  const chatId = req.headers.get('X-Chat-ID');
   const { messages }: { messages: UIMessage[] } = await req.json();
 
-  const modelName = process.env.AI_MODEL_NAME || "gpt-3.5-turbo";
-
+  const modelName = process.env.CHAT_MODEL_NAME || "gpt-3.5-turbo";
   const model = createOpenAICompatible({
     name: modelName,
-    baseURL: process.env.OPENAI_API_BASE || "https://api.openai.com/v1",
-    apiKey: process.env.OPENAI_API_KEY,
-  })(modelName)
-
-  const tools = [
-    {
-      name: "createTodo",
-      description: "Create a new TODO item with title, description, priority, and optional dates",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Title of the TODO item" },
-          description: { type: "string", description: "Description of the TODO item" },
-          priority: { type: "number", description: "Priority level (1-5)" },
-          startDateTime: { type: "string", format: "date-time", description: "Start date and time" },
-          endDateTime: { type: "string", format: "date-time", description: "End date and time" }
-        },
-        required: ["title"]
-      }
-    },
-    {
-      name: "updateTodo",
-      description: "Update an existing TODO item by ID",
-      parameters: {
-        type: "object",
-        properties: {
-          id: { type: "string", description: "ID of the TODO to update (required)" },
-          newTitle: { type: "string", description: "New title for the TODO" },
-          description: { type: "string", description: "New description" },
-          priority: { type: "number", description: "New priority (1-5)" },
-          startDateTime: { type: "string", format: "date-time", description: "New start date and time" },
-          completed: { type: "boolean", description: "Whether the TODO is completed" }
-        },
-        required: ["id"]
-      }
+    baseURL: process.env.MODEL_API_BASE || "https://api.openai.com/v1",
+    // apiKey: process.env.MODEL_API_KEY,
+    headers: {
+      "Authorization": `Bearer ${process.env.MODEL_API_KEY}`
     }
-  ];
+  })(modelName)
 
   // 获取上下文信息和技能
   const [recentMemories, currentTodos, availableSkills] = await Promise.all([
@@ -143,7 +111,7 @@ export async function POST(req: Request) {
   重要规则：
   - 当用户说"我完成了"、"做好了"等表达时，智能识别他们指的是哪个任务，并直接使用 completeTodo 工具标记为完成
   - 不要询问用户任务ID，根据当前任务列表智能匹配最相关的任务
-  - 工具选择：有时间要求用 createTodo，无时间要求用 createSimpleTodo
+  - 任务标题至少需要3个字符，如果用户提供的标题太短，请要求用户提供更详细的描述
   - 提取记忆时，请确保提取的内容是简洁、有意义的文本，不要包含HTML标签、XML参数或其他格式化标记
   `;
 
@@ -155,37 +123,39 @@ export async function POST(req: Request) {
       createTodo: tool({
         description: "创建待办事项。当用户提到具体时间（小时、分钟、时间段）时，必须设置 startDateTime 和 endDateTime。",
         inputSchema: z.object({
-          title: z.string().describe("任务标题，简短明确，不要包含时间信息"),
+          title: z.string().min(3, "任务标题至少需要3个字符").describe("任务标题，简短明确，不要包含时间信息，至少3个字符"),
           description: z.string().optional().describe("任务描述，可选"),
-          startDateTime: z.string().describe("开始时间（UTC格式，ISO字符串）。如：2026-02-11T11:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
-          endDateTime: z.string().describe("结束时间（UTC格式，ISO字符串）。如：2026-02-11T14:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
+          startDateTime: z.string().optional().describe("开始时间（UTC格式，ISO字符串）。如：2026-02-11T11:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
+          endDateTime: z.string().optional().describe("结束时间（UTC格式，ISO字符串）。如：2026-02-11T14:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
           priority: z.number().optional().describe("优先级：1最低，5最高，默认1"),
+          links: z.record(z.string(), z.string()).optional().describe("相关链接，key为链接标题，value为URL"),
         }),
         execute: async (data) => {
-          const todoData = {
+          if (!data.title || data.title.length < 3) {
+            return `错误：任务标题至少需要3个字符。请提供一个更详细的任务标题。`;
+          }
+          const todoData: TodoData = {
+            id: generateId(),
             title: data.title,
             description: data.description,
-            startDateTime: new Date(data.startDateTime),
-            endDateTime: new Date(data.endDateTime),
             priority: data.priority || 1,
+            completed: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           };
+          if (data.startDateTime) {
+            todoData.startDateTime = new Date(data.startDateTime);
+          }
+          if (data.endDateTime) {
+            todoData.endDateTime = new Date(data.endDateTime);
+          }
+          if (data.links) {
+            todoData.links = data.links;
+          }
           await createTodo(todoData);
-          return `已创建任务：${data.title} (UTC时间：${new Date(data.startDateTime).toISOString()} - ${new Date(data.endDateTime).toISOString()})`;
-        },
-      }),
-      createSimpleTodo: tool({
-        description: "创建简单待办事项（无时间要求）",
-        inputSchema: z.object({
-          title: z.string().describe("任务标题"),
-          description: z.string().optional().describe("任务描述"),
-          priority: z.number().optional().describe("优先级：1最低，5最高，默认1"),
-        }),
-        execute: async (data) => {
-          await createTodo({
-            title: data.title,
-            description: data.description,
-            priority: data.priority || 1,
-          });
+          if (data.startDateTime && data.endDateTime) {
+            return `已创建任务：${data.title} (UTC时间：${new Date(data.startDateTime).toISOString()} - ${new Date(data.endDateTime).toISOString()})`;
+          }
           return `已创建任务：${data.title}`;
         },
       }),
@@ -370,6 +340,9 @@ export async function POST(req: Request) {
         console.error("Failed to save chat messages:", error);
       }
 
+    },
+    onError: (error) => {
+      console.error("Error in stream:", JSON.stringify(error, null, 2));
     }
   });
 

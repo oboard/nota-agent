@@ -17,10 +17,10 @@ const LAST_RUN_FILE = path.join(__dirname, "../data/memories/.memory-consolidati
 // Initialize AI Model
 // Using the same configuration as in app/api/chat/route.ts
 const model = createOpenAICompatible({
-    name: "Kimi-K2.5",
-    baseURL: process.env.OPENAI_API_BASE || "https://api.openai.com/v1",
-    apiKey: process.env.OPENAI_API_KEY,
-})("Kimi-K2.5");
+    name: process.env.CHAT_MODEL_NAME || "",
+    baseURL: process.env.MODEL_API_BASE || "https://api.openai.com/v1",
+    apiKey: process.env.MODEL_API_KEY,
+})(process.env.CHAT_MODEL_NAME || "");
 
 export async function checkAndConsolidateMemories() {
     console.log("[Memory Manager] Checking consolidation status...");

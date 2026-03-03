@@ -22,6 +22,7 @@ export interface TodoData {
     updatedAt: Date;
     cron?: string;
     lastGenerated?: string;
+    links?: Record<string, string>; // key: link title, value: url
 }
 
 export interface LinkMetadata {

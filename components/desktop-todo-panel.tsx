@@ -119,7 +119,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                           {todo.description}
                                         </p>
                                       )}
-                                      {(todo.priority > 1 || todo.startDateTime) && (
+                                      {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && (
                                             <Chip
@@ -141,6 +141,102 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                               {new Date(todo.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </Chip>
                                           )}
+                                          {todo.links && Object.entries(todo.links).map(([title, url]) => (
+                                            <Chip
+                                              key={url}
+                                              size="sm"
+                                              variant="flat"
+                                              color="secondary"
+                                              as="a"
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-4 text-[10px] px-1 min-w-0 cursor-pointer hover:bg-secondary-100"
+                                            >
+                                              🔗 {title}
+                                            </Chip>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <Button
+                                      isIconOnly
+                                      size="sm"
+                                      variant="light"
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity -mr-1 -mt-1 text-default-300 hover:text-danger hover:bg-danger-50 h-5 w-5 min-w-5"
+                                      onPress={() => handleDeleteTodo(todo.id)}
+                                    >
+                                      <span className="text-[10px]">✕</span>
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 无日期 */}
+                      {(() => {
+                        const noDateTodos = todos.filter(todo => !todo.completed && !todo.startDateTime);
+
+                        return noDateTodos.length > 0 && (
+                          <div className="space-y-1.5">
+                            <h3 className="text-xs font-semibold text-default-500 px-2 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-default-300"></span>
+                              无日期
+                            </h3>
+                            <div className="space-y-1.5">
+                              {noDateTodos.map((todo) => (
+                                <div
+                                  key={todo.id}
+                                  className={`group relative p-2.5 rounded-lg border transition-all duration-200 hover:shadow-md ${"bg-content1 border-default-100 hover:border-default-300"
+                                    }`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <Checkbox
+                                      isSelected={todo.completed}
+                                      onValueChange={(v) => handleToggleTodo(todo.id, v)}
+                                      color="success"
+                                      size="sm"
+                                      radius="full"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-medium text-xs leading-snug text-foreground">
+                                        {todo.title}
+                                      </h4>
+                                      {todo.description && (
+                                        <p className="text-[10px] mt-1 line-clamp-2 leading-relaxed text-default-500">
+                                          {todo.description}
+                                        </p>
+                                      )}
+                                      {(todo.priority > 1 || todo.links) && (
+                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                          {todo.priority > 1 && (
+                                            <Chip
+                                              size="sm"
+                                              variant="flat"
+                                              color={todo.priority >= 4 ? "danger" : "warning"}
+                                              className="h-4 text-[10px] px-1 min-w-0"
+                                            >
+                                              P{todo.priority}
+                                            </Chip>
+                                          )}
+                                          {todo.links && Object.entries(todo.links).map(([title, url]) => (
+                                            <Chip
+                                              key={url}
+                                              size="sm"
+                                              variant="flat"
+                                              color="secondary"
+                                              as="a"
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-4 text-[10px] px-1 min-w-0 cursor-pointer hover:bg-secondary-100"
+                                            >
+                                              🔗 {title}
+                                            </Chip>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
@@ -164,6 +260,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                       {/* 逾期未完成 (使用本地时区比较) */}
                       {(() => {
                         const today = new Date();
+                        today.setHours(23, 59, 59, 999); // 设置为今天结束时间
                         const overdueTodos = todos.filter(todo => !todo.completed &&
                           todo.startDateTime && new Date(todo.startDateTime) < today
                         );
@@ -202,7 +299,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                           {todo.description}
                                         </p>
                                       )}
-                                      {(todo.priority > 1 || todo.startDateTime) && (
+                                      {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && (
                                             <Chip
@@ -224,6 +321,21 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                               {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                             </Chip>
                                           )}
+                                          {todo.links && Object.entries(todo.links).map(([title, url]) => (
+                                            <Chip
+                                              key={url}
+                                              size="sm"
+                                              variant="flat"
+                                              color="secondary"
+                                              as="a"
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-4 text-[10px] px-1 min-w-0 cursor-pointer hover:bg-secondary-100"
+                                            >
+                                              🔗 {title}
+                                            </Chip>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
@@ -287,7 +399,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                           {todo.description}
                                         </p>
                                       )}
-                                      {(todo.priority > 1 || todo.startDateTime) && (
+                                      {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && (
                                             <Chip size="sm" variant="flat" color={todo.priority >= 4 ? "danger" : "warning"} className="h-4 text-[10px] px-1 min-w-0">P{todo.priority}</Chip>
@@ -297,6 +409,21 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                               {new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
                                             </Chip>
                                           )}
+                                          {todo.links && Object.entries(todo.links).map(([title, url]) => (
+                                            <Chip
+                                              key={url}
+                                              size="sm"
+                                              variant="flat"
+                                              color="secondary"
+                                              as="a"
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-4 text-[10px] px-1 min-w-0 cursor-pointer hover:bg-secondary-100"
+                                            >
+                                              🔗 {title}
+                                            </Chip>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
@@ -341,10 +468,25 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                     <div className="flex-1 min-w-0">
                                       <h4 className="font-medium text-xs leading-snug text-foreground">{todo.title}</h4>
                                       {todo.description && <p className="text-[10px] mt-1 line-clamp-2 leading-relaxed text-default-500">{todo.description}</p>}
-                                      {(todo.priority > 1 || todo.startDateTime) && (
+                                      {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && <Chip size="sm" variant="flat" color={todo.priority >= 4 ? "danger" : "warning"} className="h-4 text-[10px] px-1 min-w-0">P{todo.priority}</Chip>}
                                           {todo.startDateTime && <Chip size="sm" variant="flat" color="secondary" className="h-4 text-[10px] px-1 min-w-0">{new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</Chip>}
+                                          {todo.links && Object.entries(todo.links).map(([title, url]) => (
+                                            <Chip
+                                              key={url}
+                                              size="sm"
+                                              variant="flat"
+                                              color="secondary"
+                                              as="a"
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-4 text-[10px] px-1 min-w-0 cursor-pointer hover:bg-secondary-100"
+                                            >
+                                              🔗 {title}
+                                            </Chip>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
@@ -392,10 +534,25 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                     <div className="flex-1 min-w-0">
                                       <h4 className="font-medium text-xs leading-snug text-foreground">{todo.title}</h4>
                                       {todo.description && <p className="text-[10px] mt-1 line-clamp-2 leading-relaxed text-default-500">{todo.description}</p>}
-                                      {(todo.priority > 1 || todo.startDateTime) && (
+                                      {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && <Chip size="sm" variant="flat" color={todo.priority >= 4 ? "danger" : "warning"} className="h-4 text-[10px] px-1 min-w-0">P{todo.priority}</Chip>}
                                           {todo.startDateTime && <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">{new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Chip>}
+                                          {todo.links && Object.entries(todo.links).map(([title, url]) => (
+                                            <Chip
+                                              key={url}
+                                              size="sm"
+                                              variant="flat"
+                                              color="secondary"
+                                              as="a"
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-4 text-[10px] px-1 min-w-0 cursor-pointer hover:bg-secondary-100"
+                                            >
+                                              🔗 {title}
+                                            </Chip>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
@@ -434,78 +591,29 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                     <div className="flex-1 min-w-0">
                                       <h4 className="font-medium text-xs leading-snug text-foreground">{todo.title}</h4>
                                       {todo.description && <p className="text-[10px] mt-1 line-clamp-2 leading-relaxed text-default-500">{todo.description}</p>}
-                                      {(todo.priority > 1 || todo.startDateTime) && (
+                                      {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && <Chip size="sm" variant="flat" color={todo.priority >= 4 ? "danger" : "warning"} className="h-4 text-[10px] px-1 min-w-0">P{todo.priority}</Chip>}
                                           {todo.startDateTime && <Chip size="sm" variant="flat" className="h-4 text-[10px] px-1 bg-default-100 text-default-500 min-w-0">{new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Chip>}
+                                          {todo.links && Object.entries(todo.links).map(([title, url]) => (
+                                            <Chip
+                                              key={url}
+                                              size="sm"
+                                              variant="flat"
+                                              color="secondary"
+                                              as="a"
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="h-4 text-[10px] px-1 min-w-0 cursor-pointer hover:bg-secondary-100"
+                                            >
+                                              🔗 {title}
+                                            </Chip>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
                                     <Button isIconOnly size="sm" variant="light" className="opacity-0 group-hover:opacity-100 transition-opacity -mr-1 -mt-1 text-default-300 hover:text-danger hover:bg-danger-50 h-5 w-5 min-w-5" onPress={() => handleDeleteTodo(todo.id)}>
-                                      <span className="text-[10px]">✕</span>
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* 无日期 */}
-                      {(() => {
-                        const noDateTodos = todos.filter(todo => !todo.completed && !todo.startDateTime);
-
-                        return noDateTodos.length > 0 && (
-                          <div className="space-y-1.5">
-                            <h3 className="text-xs font-semibold text-default-500 px-2 flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-default-300"></span>
-                              无日期
-                            </h3>
-                            <div className="space-y-1.5">
-                              {noDateTodos.map((todo) => (
-                                <div
-                                  key={todo.id}
-                                  className={`group relative p-2.5 rounded-lg border transition-all duration-200 hover:shadow-md ${"bg-content1 border-default-100 hover:border-default-300"
-                                    }`}
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <Checkbox
-                                      isSelected={todo.completed}
-                                      onValueChange={(v) => handleToggleTodo(todo.id, v)}
-                                      color="success"
-                                      size="sm"
-                                      radius="full"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="font-medium text-xs leading-snug text-foreground">
-                                        {todo.title}
-                                      </h4>
-                                      {todo.description && (
-                                        <p className="text-[10px] mt-1 line-clamp-2 leading-relaxed text-default-500">
-                                          {todo.description}
-                                        </p>
-                                      )}
-                                      {todo.priority > 1 && (
-                                        <div className="flex flex-wrap gap-1 mt-1.5">
-                                          <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            color={todo.priority >= 4 ? "danger" : "warning"}
-                                            className="h-4 text-[10px] px-1 min-w-0"
-                                          >
-                                            P{todo.priority}
-                                          </Chip>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <Button
-                                      isIconOnly
-                                      size="sm"
-                                      variant="light"
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity -mr-1 -mt-1 text-default-300 hover:text-danger hover:bg-danger-50 h-5 w-5 min-w-5"
-                                      onPress={() => handleDeleteTodo(todo.id)}
-                                    >
                                       <span className="text-[10px]">✕</span>
                                     </Button>
                                   </div>
