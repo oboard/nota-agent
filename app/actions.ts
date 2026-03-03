@@ -7,6 +7,16 @@ import { readFile, readdir } from 'fs/promises';
 import path from 'path';
 
 /**
+ * 聊天数据结构（兼容旧格式）
+ */
+interface ChatData {
+  id: string;
+  messages: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * 解析文件内容为 messages 数组，兼容旧格式（ChatData 数组）与新格式（messages 数组）
  */
 function parseMessagesFromContent(content: string): any[] {

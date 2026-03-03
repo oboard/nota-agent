@@ -1,64 +1,21 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { streamText, tool, generateObject, convertToModelMessages, generateText, type UIMessage, generateId } from "ai";
-import { z } from "zod";
-import { createTodo, updateTodo, toggleTodo, deleteTodo, addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
+import { streamText, convertToModelMessages, generateText, type UIMessage } from "ai";
+import { addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
 import { urlMetadataExtractor } from "@/lib/url-metadata";
 import { skillsManager } from "@/lib/skills-manager";
-import { TodoData } from "@/lib/storage";
+import {
+  createTodoTool,
+  completeTodoTool,
+  updateTodoTool,
+  deleteTodoTool,
+  saveMemoryTool,
+  autoSaveMemoryTool,
+  cleanMemoryContent,
+  isValidMemoryContent,
+  loadSkillTool,
+} from "@/lib/tools";
 
 export const maxDuration = 30;
-
-/**
- * 清理记忆内容，移除HTML标签、XML参数等格式化标记
- */
-function cleanMemoryContent(content: string): string {
-  if (!content) return '';
-
-  // 移除HTML/XML标签
-  let cleaned = content
-    .replace(/<[^>]*>/g, '')                    // 移除HTML/XML标签
-    .replace(/&[a-zA-Z]+;/g, '')                // 移除HTML实体
-    .replace(/<\/?parameter[^>]*>/gi, '')      // 移除parameter标签
-    .replace(/<\/?[^>]+>/g, '')                 // 移除任何其他标签
-    .trim();
-
-  // 移除特殊字符和格式化符号
-  cleaned = cleaned
-    .replace(/^[:：，。！？\s]+/, '')            // 移除开头的标点符号
-    .replace(/[:：，。！？\s]+$/, '')            // 移除结尾的标点符号
-    .replace(/\s+/g, ' ')                       // 规范化空格
-    .trim();
-
-  return cleaned;
-}
-
-/**
- * 验证内容是否有实质信息，避免保存空或无效内容
- */
-function isValidMemoryContent(content: string): boolean {
-  if (!content || content.length < 3) return false;
-
-  // 先清理内容
-  const cleaned = cleanMemoryContent(content);
-
-  // 去除空白字符和常见标点后再检查
-  const pureText = cleaned
-    .replace(/[：:，。！？\s]/g, '')
-    .replace(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g, '')
-    .trim();
-
-  // 检查是否为空、只有标点、或特定无效模式
-  const invalidPatterns = [
-    /^[:：，。！？\s]*$/,           // 只有标点符号
-    /^\[链接\]$/,                   // 只有链接占位符
-    /^用户说: \s*$/,               // 只有前缀没有内容
-    /^用户说: \[链接\]$/,          // 只有前缀和链接占位符
-    /^\d+$/,                        // 只有数字
-    /^[a-zA-Z]+$/                   // 只有字母，没有实质内容
-  ];
-
-  return pureText.length >= 2 && !invalidPatterns.some(pattern => pattern.test(content));
-}
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
@@ -120,105 +77,12 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     system: systemPrompt,
     tools: {
-      createTodo: tool({
-        description: "创建待办事项。当用户提到具体时间（小时、分钟、时间段）时，必须设置 startDateTime 和 endDateTime。",
-        inputSchema: z.object({
-          title: z.string().min(3, "任务标题至少需要3个字符").describe("任务标题，简短明确，不要包含时间信息，至少3个字符"),
-          description: z.string().optional().describe("任务描述，可选"),
-          startDateTime: z.string().optional().describe("开始时间（UTC格式，ISO字符串）。如：2026-02-11T11:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
-          endDateTime: z.string().optional().describe("结束时间（UTC格式，ISO字符串）。如：2026-02-11T14:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
-          priority: z.number().optional().describe("优先级：1最低，5最高，默认1"),
-          links: z.record(z.string(), z.string()).optional().describe("相关链接，key为链接标题，value为URL"),
-        }),
-        execute: async (data) => {
-          if (!data.title || data.title.length < 3) {
-            return `错误：任务标题至少需要3个字符。请提供一个更详细的任务标题。`;
-          }
-          const todoData: TodoData = {
-            id: generateId(),
-            title: data.title,
-            description: data.description,
-            priority: data.priority || 1,
-            completed: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          if (data.startDateTime) {
-            todoData.startDateTime = new Date(data.startDateTime);
-          }
-          if (data.endDateTime) {
-            todoData.endDateTime = new Date(data.endDateTime);
-          }
-          if (data.links) {
-            todoData.links = data.links;
-          }
-          await createTodo(todoData);
-          if (data.startDateTime && data.endDateTime) {
-            return `已创建任务：${data.title} (UTC时间：${new Date(data.startDateTime).toISOString()} - ${new Date(data.endDateTime).toISOString()})`;
-          }
-          return `已创建任务：${data.title}`;
-        },
-      }),
-      completeTodo: tool({
-        description: "完成任务",
-        inputSchema: z.object({
-          id: z.string().describe("任务ID"),
-          title: z.string().optional().describe("任务标题"),
-        }),
-        execute: async (data) => {
-          await toggleTodo(data.id, true);
-          return `任务已完成`;
-        },
-      }),
-      updateTodo: tool({
-        description: "更新任务信息",
-        inputSchema: z.object({
-          id: z.string().describe("任务ID"),
-          title: z.string().optional().describe("新标题"),
-          description: z.string().optional().describe("新描述"),
-          startDateTime: z.string().optional().describe("新开始时间（ISO格式）"),
-          endDateTime: z.string().optional().describe("新结束时间（ISO格式）"),
-          priority: z.number().optional().describe("新优先级（1-5）"),
-        }),
-        execute: async (data) => {
-          await updateTodo(data.id, {
-            title: data.title,
-            description: data.description,
-            startDateTime: data.startDateTime,
-            endDateTime: data.endDateTime,
-            priority: data.priority,
-          });
-          return `已更新任务`;
-        },
-      }),
-      deleteTodo: tool({
-        description: "删除任务",
-        inputSchema: z.object({
-          id: z.string().describe("任务ID"),
-        }),
-        execute: async (data) => {
-          await deleteTodo(data.id);
-          return `任务已删除`;
-        },
-      }),
-      loadSkill: tool({
-        description: "加载指定技能以获取专业指令",
-        inputSchema: z.object({
-          name: z.string().describe("要加载的技能名称"),
-        }),
-        execute: async ({ name }) => {
-          const skill = await skillsManager.loadSkill(name);
-          if (!skill) {
-            return { error: `技能 '${name}' 未找到` };
-          }
-
-          return {
-            skillDirectory: skill.metadata.path,
-            content: skill.content,
-            metadata: skill.metadata,
-          };
-        },
-      }),
+      createTodo: createTodoTool,
+      completeTodo: completeTodoTool,
+      updateTodo: updateTodoTool,
+      deleteTodo: deleteTodoTool,
+      loadSkill: loadSkillTool,
+      saveMemory: saveMemoryTool,
     },
     onFinish: async ({ text }) => {
       // 保存对话记录
@@ -265,16 +129,7 @@ export async function POST(req: Request) {
         const memoryResult = await generateText({
           model,
           tools: {
-            saveMemory: tool({
-              description: "保存值得长期记忆的信息（事实、偏好、想法等）",
-              inputSchema: z.object({
-                content: z.string().describe("提取出的核心记忆内容，简练陈述"),
-              }),
-              execute: async (args) => {
-                await addMemory(args.content);
-                return "记忆已保存";
-              }
-            }),
+            saveMemory: autoSaveMemoryTool,
           },
           prompt: `分析用户的最新输入和你的回复，判断是否包含值得长期记忆的关键信息（如事实、用户偏好、重要日期、想法等）。
             

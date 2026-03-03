@@ -45,7 +45,7 @@ async function testChatSave() {
     ];
 
     // 保存消息
-    await chatStorage.saveChat(chatId, testMessages);
+    await chatStorage.saveChat(testMessages);
     console.log('消息保存成功');
 
     // 验证保存结果
