@@ -21,6 +21,50 @@ Nota Agent 是一个智能的个人任务管理和记忆助手。它结合了现
   - 暗黑/明亮模式切换。
   - 优雅的 UI 组件（基于 HeroUI）。
 
+## 项目结构
+
+```
+nota-agent/
+├── app/                    # Next.js App Router
+│   ├── api/chat/           # 聊天 API 路由
+│   ├── actions.ts          # 服务端 Actions
+│   └── ...
+├── components/             # React 组件
+├── lib/
+│   ├── tools/              # AI 工具模块（可复用）
+│   │   ├── index.ts        # 统一导出
+│   │   ├── todo.ts         # 待办事项工具
+│   │   ├── memory.ts       # 记忆管理工具
+│   │   └── skill.ts        # 技能加载工具
+│   ├── storage.ts          # 数据存储
+│   ├── skills-manager.ts   # 技能管理器
+│   └── ...
+├── skills/                 # 技能定义目录
+│   ├── memory-management/  # 记忆管理技能
+│   ├── todo-management/    # 待办事项管理技能
+│   └── web-search/         # 网页搜索技能
+└── ...
+```
+
+## AI 工具模块
+
+项目将 AI 工具模块化，便于复用和维护：
+
+### 待办事项工具 (`lib/tools/todo.ts`)
+- `createTodoTool` - 创建待办事项
+- `completeTodoTool` - 完成任务
+- `updateTodoTool` - 更新任务信息
+- `deleteTodoTool` - 删除任务
+
+### 记忆管理工具 (`lib/tools/memory.ts`)
+- `saveMemoryTool` - 保存长期记忆（用于对话中主动调用）
+- `autoSaveMemoryTool` - 自动记忆提取（用于对话结束后自动提取）
+- `cleanMemoryContent` - 清理记忆内容（移除格式化标记）
+- `isValidMemoryContent` - 验证记忆内容有效性
+
+### 技能加载工具 (`lib/tools/skill.ts`)
+- `loadSkillTool` - 加载指定技能获取专业指令
+
 ## 快速开始
 
 ### 1. 克隆项目
