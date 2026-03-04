@@ -106,7 +106,6 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
       console.log(data.toolCall)
       switch (data.toolCall.toolName) {
         case 'createTodo':
-        case 'createSimpleTodo':
         case 'completeTodo':
         case 'updateTodo':
         case 'deleteTodo':

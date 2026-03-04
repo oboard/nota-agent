@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain } from 'electron'
+import { app, BrowserWindow, Menu, ipcMain, shell } from 'electron'
 import type { BrowserWindow as BrowserWindowType } from 'electron'
 import * as path from 'path'
 import { checkAndConsolidateMemories } from './memory-manager.ts'
@@ -92,6 +92,24 @@ const createWindow = () => {
   // 监听右键点击事件
   mainWindow.webContents.on('context-menu', () => {
     contextMenu.popup()
+  })
+
+  // 拦截链接点击，使用系统默认浏览器打开
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // 使用系统默认浏览器打开外部链接
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
+  // 阻止在 Electron 窗口中导航到外部链接
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // 允许本地开发服务器和本地文件
+    if (url.startsWith('http://localhost') || url.startsWith('file://')) {
+      return
+    }
+    // 阻止外部链接在 Electron 窗口中打开
+    event.preventDefault()
+    shell.openExternal(url)
   })
 
   // 开发环境加载本地服务器，生产环境加载构建后的文件

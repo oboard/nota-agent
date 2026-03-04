@@ -74,6 +74,7 @@ export const updateTodoTool = tool({
     startDateTime: z.string().optional().describe("新开始时间（ISO格式）"),
     endDateTime: z.string().optional().describe("新结束时间（ISO格式）"),
     priority: z.number().optional().describe("新优先级（1-5）"),
+    links: z.record(z.string(), z.string()).optional().describe("相关链接，key为链接标题，value为URL"),
   }),
   execute: async (data) => {
     await updateTodo(data.id, {
@@ -82,6 +83,7 @@ export const updateTodoTool = tool({
       startDateTime: data.startDateTime,
       endDateTime: data.endDateTime,
       priority: data.priority,
+      links: data.links,
     });
     return `已更新任务`;
   },

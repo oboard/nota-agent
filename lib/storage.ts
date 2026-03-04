@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { CronExpressionParser } from 'cron-parser';
-import { UrlMetadata } from './url-metadata';
 
 export interface MemoryData {
     id: string;
@@ -22,7 +21,7 @@ export interface TodoData {
     updatedAt: Date;
     cron?: string;
     lastGenerated?: string;
-    links?: Record<string, string>; // key: link title, value: url
+    links?: Record<string, string>; // title: url
 }
 
 export interface LinkMetadata {
