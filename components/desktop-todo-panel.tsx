@@ -278,13 +278,15 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         );
                       })()}
 
-                      {/* 逾期未完成 (使用本地时区比较) */}
+                      {/* 逾期未完成 (结束时间早于现在) */}
                       {(() => {
-                        const today = new Date();
-                        today.setHours(23, 59, 59, 999); // 设置为今天结束时间
-                        const overdueTodos = todos.filter(todo => !todo.completed &&
-                          todo.startDateTime && new Date(todo.startDateTime) < today
-                        );
+                        const now = new Date();
+                        const overdueTodos = todos.filter(todo => {
+                          if (todo.completed) return false;
+                          // 使用结束时间判断逾期，如果没有结束时间则使用开始时间
+                          const endTime = todo.endDateTime ? new Date(todo.endDateTime) : (todo.startDateTime ? new Date(todo.startDateTime) : null);
+                          return endTime && endTime < now;
+                        });
 
                         return overdueTodos.length > 0 && (
                           <div className="space-y-1.5">
