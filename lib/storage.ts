@@ -79,6 +79,42 @@ export class FileStorage {
         }
     }
 
+    async addLongTermMemory(content: string): Promise<void> {
+        const fileName = 'long-term.md';
+        const filePath = this.getFilePath(fileName);
+
+        const timestamp = new Date().toISOString();
+        const entry = `## LONG_TERM - ${timestamp}\n\n${content}\n\n---\n\n`;
+
+        try {
+            await fs.appendFile(filePath, entry);
+        } catch (error) {
+            console.error('Error adding long-term memory:', error);
+            throw error;
+        }
+    }
+
+    async getLongTermMemories(limit: number = 50): Promise<MemoryData[]> {
+        const fileName = 'long-term.md';
+        const filePath = this.getFilePath(fileName);
+        const memories: MemoryData[] = [];
+
+        try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            const parsedMemories = this.parseMemoriesFromMarkdown(content, fileName);
+            memories.push(...parsedMemories);
+        } catch (err: any) {
+            if (err.code !== 'ENOENT') {
+                console.error(`Error reading long-term memory file:`, err);
+            }
+        }
+
+        // 按时间戳排序，最新的在前面
+        return memories
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, limit);
+    }
+
     async getMemories(limit: number = 50): Promise<MemoryData[]> {
         const memories: MemoryData[] = [];
 

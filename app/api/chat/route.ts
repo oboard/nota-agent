@@ -1,6 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText, convertToModelMessages, generateText, type UIMessage } from "ai";
-import { addMemory, getRecentMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
+import { addMemory, getRecentMemories, getLongTermMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
 import { urlMetadataExtractor } from "@/lib/url-metadata";
 import { skillsManager } from "@/lib/skills-manager";
 import {
@@ -9,6 +9,7 @@ import {
   updateTodoTool,
   deleteTodoTool,
   saveMemoryTool,
+  saveLongTermMemoryTool,
   autoSaveMemoryTool,
   cleanMemoryContent,
   isValidMemoryContent,
@@ -31,21 +32,34 @@ export async function POST(req: Request) {
   })(modelName)
 
   // 获取上下文信息和技能
-  const [recentMemories, currentTodos, availableSkills] = await Promise.all([
+  const [recentMemories, longTermMemories, currentTodos, availableSkills] = await Promise.all([
     getRecentMemories(),
+    getLongTermMemories(),
     getTodos(),
     skillsManager.discoverSkills(),
   ]);
 
   const skillsPrompt = skillsManager.buildSkillsPrompt(availableSkills);
 
+  // 格式化记忆显示
+  const longTermMemoriesText = longTermMemories.length > 0
+    ? longTermMemories.map(m => `- ${m.content}`).join("\n")
+    : "（暂无长期记忆）";
+
+  const recentMemoriesText = recentMemories.length > 0
+    ? recentMemories.map(m => `- [${m.createdAt}] ${m.content}`).join("\n")
+    : "（暂无近期记忆）";
+
   const systemPrompt = `你是一个智能助手 NotaAgent。
   你的核心目标是帮助用户整理任务和回答问题。
   
-  当前已有记忆：
-  ${recentMemories.map(m => `- [${m.createdAt}] ${m.content}`).join("\n")}
+  ## 长期记忆（用户偏好、重要信息、永久记住的内容）：
+  ${longTermMemoriesText}
   
-  当前待办事项（ID: 标题）：
+  ## 近期记忆（最近的对话关键信息）：
+  ${recentMemoriesText}
+  
+  ## 当前待办事项（ID: 标题）：
   ${currentTodos.map(t => `- ${t.id}: ${t.title}`).join("\n")}
   
   ${skillsPrompt}
@@ -55,12 +69,13 @@ export async function POST(req: Request) {
   2. 智能管理待办事项：
       - 首先检查当前待办事项列表，判断用户请求是创建新任务还是更新现有任务
       - 如果用户提到具体时间（几点、小时、分钟、时间段），使用 createTodo 工具，必须设置 startDateTime 和 endDateTime
-      - 如果用户只说要做的事情但没有具体时间，使用 createSimpleTodo 工具
+      - 如果用户只说要做的事情但没有具体时间，使用 createTodo 工具（不设置时间参数）
       - 如果用户表示完成了某个任务，使用 completeTodo 工具直接标记为完成
       - 如果用户说要删除某个任务，使用 deleteTodo 工具删除
       - 如果用户想要修改现有任务（更改标题、描述、时间或优先级），必须使用 updateTodo 工具并通过ID指定任务，不允许通过标题匹配
       - 始终在待办事项列表中向用户显示ID和标题，方便用户引用
       - 如果用户要修改任务信息，使用 updateTodo 工具更新
+      - 创建任务时，如果用户提供了相关链接（如文档链接、参考链接等），使用 links 参数保存，key 为链接标题，value 为 URL
   3. 始终保持友善、简洁。
   4. 今天的日期是：${new Date().toLocaleDateString()}。
   5. 当前UTC时间是：${new Date().toISOString()}（注意：这是UTC时间，比北京时间慢8小时）。
@@ -70,6 +85,7 @@ export async function POST(req: Request) {
   - 不要询问用户任务ID，根据当前任务列表智能匹配最相关的任务
   - 任务标题至少需要3个字符，如果用户提供的标题太短，请要求用户提供更详细的描述
   - 提取记忆时，请确保提取的内容是简洁、有意义的文本，不要包含HTML标签、XML参数或其他格式化标记
+  - 当用户说"以后..."、"记住..."、"我喜欢..."、"我讨厌..."等表达长期偏好或永久记住的内容时，使用 saveLongTermMemory 工具保存为长期记忆
   `;
 
   const result = streamText({
@@ -83,6 +99,7 @@ export async function POST(req: Request) {
       deleteTodo: deleteTodoTool,
       loadSkill: loadSkillTool,
       saveMemory: saveMemoryTool,
+      saveLongTermMemory: saveLongTermMemoryTool,
     },
     onFinish: async ({ text }) => {
       // 保存对话记录

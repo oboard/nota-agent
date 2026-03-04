@@ -12,7 +12,10 @@ Nota Agent 是一个智能的个人任务管理和记忆助手。它结合了现
 
 - **AI 对话助手**:
   - 智能对话，理解并执行任务管理指令。
-  - **记忆功能**: 自动提取对话中的重要信息并长期保存（如事实、偏好等）。
+  - **双重记忆系统**:
+    - **短期记忆**: 最近对话的关键信息，按日期存储
+    - **长期记忆**: 用户偏好、身份信息、"以后..."相关规划等永久保存
+    - 自动识别记忆类型并分类存储
   - 基于上下文的问答。
   - 支持 Markdown、Mermaid 图表、数学公式和代码高亮渲染。
 
@@ -57,10 +60,12 @@ nota-agent/
 - `deleteTodoTool` - 删除任务
 
 ### 记忆管理工具 (`lib/tools/memory.ts`)
-- `saveMemoryTool` - 保存长期记忆（用于对话中主动调用）
-- `autoSaveMemoryTool` - 自动记忆提取（用于对话结束后自动提取）
+- `saveMemoryTool` - 保存记忆（自动判断短期或长期）
+- `saveLongTermMemoryTool` - 明确保存为长期记忆
+- `autoSaveMemoryTool` - 自动记忆提取（对话结束后自动提取）
 - `cleanMemoryContent` - 清理记忆内容（移除格式化标记）
 - `isValidMemoryContent` - 验证记忆内容有效性
+- `isLongTermMemoryContent` - 判断内容是否应作为长期记忆
 
 ### 技能加载工具 (`lib/tools/skill.ts`)
 - `loadSkillTool` - 加载指定技能获取专业指令

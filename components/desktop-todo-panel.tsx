@@ -77,13 +77,25 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                     </div>
                   ) : (
                     <>
-                      {/* 今日任务 (使用本地时区比较) */}
+                      {/* 今日任务 (开始时间或结束时间在今天，或时间范围跨越今天) */}
                       {(() => {
                         const today = new Date();
-                        const todayDateStr = today.toLocaleDateString();
-                        const todayTodos = todos.filter(todo => !todo.completed &&
-                          todo.startDateTime && new Date(todo.startDateTime).toLocaleDateString() === todayDateStr
-                        );
+                        today.setHours(0, 0, 0, 0);
+                        const todayEnd = new Date(today);
+                        todayEnd.setHours(23, 59, 59, 999);
+
+                        const todayTodos = todos.filter(todo => {
+                          if (todo.completed) return false;
+                          if (!todo.startDateTime) return false;
+
+                          const startTime = new Date(todo.startDateTime);
+                          const endTime = todo.endDateTime ? new Date(todo.endDateTime) : startTime;
+
+                          // 开始时间在今天、结束时间在今天、或时间范围跨越今天
+                          return (startTime >= today && startTime <= todayEnd) ||
+                            (endTime >= today && endTime <= todayEnd) ||
+                            (startTime < today && endTime > todayEnd);
+                        });
 
                         return todayTodos.length > 0 && (
                           <div className="space-y-1.5">
@@ -139,6 +151,15 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                               className="h-4 text-[10px] px-1 min-w-0"
                                             >
                                               {new Date(todo.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                              {todo.endDateTime && (() => {
+                                                const start = new Date(todo.startDateTime!);
+                                                const end = new Date(todo.endDateTime);
+                                                const isSameDay = start.toDateString() === end.toDateString();
+                                                return <> - {isSameDay
+                                                  ? end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                  : end.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                }</>;
+                                              })()}
                                             </Chip>
                                           )}
                                           {todo.links && Object.entries(todo.links).map(([title, url]) => (
@@ -319,6 +340,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                               className="h-4 text-[10px] px-1 min-w-0"
                                             >
                                               {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                              {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
                                             </Chip>
                                           )}
                                           {todo.links && Object.entries(todo.links).map(([title, url]) => (
@@ -407,6 +429,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                           {todo.startDateTime && (
                                             <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
                                               {new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                                              {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</>}
                                             </Chip>
                                           )}
                                           {todo.links && Object.entries(todo.links).map(([title, url]) => (
@@ -471,7 +494,12 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                       {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && <Chip size="sm" variant="flat" color={todo.priority >= 4 ? "danger" : "warning"} className="h-4 text-[10px] px-1 min-w-0">P{todo.priority}</Chip>}
-                                          {todo.startDateTime && <Chip size="sm" variant="flat" color="secondary" className="h-4 text-[10px] px-1 min-w-0">{new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</Chip>}
+                                          {todo.startDateTime && (
+                                            <Chip size="sm" variant="flat" color="secondary" className="h-4 text-[10px] px-1 min-w-0">
+                                              {new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                                              {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</>}
+                                            </Chip>
+                                          )}
                                           {todo.links && Object.entries(todo.links).map(([title, url]) => (
                                             <Chip
                                               key={url}
@@ -537,7 +565,12 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                       {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && <Chip size="sm" variant="flat" color={todo.priority >= 4 ? "danger" : "warning"} className="h-4 text-[10px] px-1 min-w-0">P{todo.priority}</Chip>}
-                                          {todo.startDateTime && <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">{new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Chip>}
+                                          {todo.startDateTime && (
+                                            <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
+                                              {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                              {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+                                            </Chip>
+                                          )}
                                           {todo.links && Object.entries(todo.links).map(([title, url]) => (
                                             <Chip
                                               key={url}
@@ -594,7 +627,12 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                       {(todo.priority > 1 || todo.startDateTime || todo.links) && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                           {todo.priority > 1 && <Chip size="sm" variant="flat" color={todo.priority >= 4 ? "danger" : "warning"} className="h-4 text-[10px] px-1 min-w-0">P{todo.priority}</Chip>}
-                                          {todo.startDateTime && <Chip size="sm" variant="flat" className="h-4 text-[10px] px-1 bg-default-100 text-default-500 min-w-0">{new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Chip>}
+                                          {todo.startDateTime && (
+                                            <Chip size="sm" variant="flat" className="h-4 text-[10px] px-1 bg-default-100 text-default-500 min-w-0">
+                                              {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                              {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+                                            </Chip>
+                                          )}
                                           {todo.links && Object.entries(todo.links).map(([title, url]) => (
                                             <Chip
                                               key={url}

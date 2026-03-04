@@ -70,6 +70,15 @@ export function TodoCard({ todos, onRefresh, onMobileExpandChange }: TodoCardPro
                                         hour: '2-digit',
                                         minute: '2-digit'
                                     })}
+                                    {todo.endDateTime && (() => {
+                                        const start = todo.startDateTime!;
+                                        const end = todo.endDateTime;
+                                        const isSameDay = start.toDateString() === end.toDateString();
+                                        return <> - {isSameDay
+                                            ? end.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' })
+                                            : end.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                        }</>;
+                                    })()}
                                 </Chip>
                             ) : null}
 

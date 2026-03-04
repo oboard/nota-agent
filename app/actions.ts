@@ -134,8 +134,17 @@ export async function addMemory(content: string) {
   revalidatePath("/");
 }
 
+export async function addLongTermMemory(content: string) {
+  await storage.addLongTermMemory(content);
+  revalidatePath("/");
+}
+
 export async function getMemories() {
   return await storage.getMemories(50);
+}
+
+export async function getLongTermMemories() {
+  return await storage.getLongTermMemories(50);
 }
 
 export async function getRecentMemories() {

@@ -14,9 +14,11 @@ export {
 // Memory 相关工具
 export {
   saveMemoryTool,
+  saveLongTermMemoryTool,
   autoSaveMemoryTool,
   cleanMemoryContent,
   isValidMemoryContent,
+  isLongTermMemoryContent,
 } from "./memory";
 
 // Skill 相关工具
