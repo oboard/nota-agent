@@ -21,9 +21,8 @@ import 'katex/dist/katex.min.css';
 import { saveChat, loadMoreMessages, scrollToDate } from '@/app/actions';
 import { addTimestampSeparators } from '@/lib/chat-utils';
 import { DatePanel } from '@/components/date-panel';
-import { TodoCard } from "./todo-card";
 import { DesktopTodoPanel } from "./desktop-todo-panel";
-import { Calendar, ChevronLeft, ListTodo, ImageIcon } from 'lucide-react';
+import { Calendar, ChevronLeft, ListTodo, ImageIcon, Check, Cog, Brain, Wrench, Save, ArrowUp } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
 
@@ -551,7 +550,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                       aria-label="Reasoning"
                                       title={
                                         <div className="flex items-center gap-1.5 text-xs">
-                                          <span>🤔</span>
+                                          <Brain className="w-3 h-3" />
                                           <span className="font-medium text-blue-600">
                                             {part.state === 'streaming' ? '思考中...' : '思考过程'}
                                           </span>
@@ -586,7 +585,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                 return (
                                   <div key={toolCallId} className="mt-1 p-2 rounded bg-background/50 border border-default-200/50 text-xs w-full">
                                     <div className="flex items-center gap-1.5">
-                                      <span>{toolName === "createTodo" ? "✅" : "⚙️"}</span>
+                                      {toolName === "createTodo" ? <Check className="w-3 h-3" /> : <Cog className="w-3 h-3" />}
                                       <span className="font-medium opacity-80">{toolName}</span>
                                       <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px]">Running</Chip>
                                     </div>
@@ -603,7 +602,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                 return (
                                   <div key={part.toolCallId} className="mt-1 p-1.5 rounded bg-success-50/50 border border-success-100 text-[10px] w-full">
                                     <div className="flex items-center gap-1.5 text-success-600">
-                                      <span>✓</span>
+                                      <Check className="w-3 h-3" />
                                       <span>Completed: {part.toolName}</span>
                                     </div>
                                   </div>
@@ -622,7 +621,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                                     return (
                                       <div key={`tool-${name}-${index}`} className="mt-2 p-3 rounded-lg bg-background/50 border border-default-200/50 text-sm w-full">
                                         <div className="flex items-center gap-2 mb-1">
-                                          <span>🛠️</span>
+                                          <Wrench className="w-4 h-4" />
                                           <span className="font-semibold opacity-80">{name}</span>
                                           <Chip size="sm" variant="flat" color="primary" className="h-5 text-xs">Running</Chip>
                                         </div>
@@ -731,7 +730,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                 className="text-default-500 hover:text-primary"
                 isDisabled={!input.trim()}
               >
-                <span className="text-lg">💾</span>
+                <Save className="w-4 h-4" />
               </Button>
               <Button
                 isIconOnly
@@ -742,7 +741,7 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                 isLoading={status === "streaming"}
                 isDisabled={!input.trim()}
               >
-                {status !== "streaming" && <span className="text-lg">↑</span>}
+                {status !== "streaming" && <ArrowUp className="w-4 h-4" />}
               </Button>
             </div>
           </div>

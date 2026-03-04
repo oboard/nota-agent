@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import { getTodos, getRecentMemories } from "./actions";
 import { DesktopTodoPanel } from "@/components/desktop-todo-panel";
-import { TodoCard } from "@/components/todo-card";
 import { AccordionTabs } from "@/components/accordion-tabs";
 import { TodoData } from "@/lib/storage";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Divider } from "@heroui/divider";
 import { Link } from "@heroui/link";
+import { MessageSquare, ClipboardList, Brain, ArrowRight } from "lucide-react";
 
 type Memory = {
   id: string;
@@ -57,22 +57,22 @@ export default function Home() {
                   <h2 className="text-lg font-semibold mb-3">功能介绍</h2>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="p-4 rounded-lg bg-default-50 border border-default-200">
-                      <h3 className="font-medium mb-2">💬 智能对话</h3>
+                      <h3 className="font-medium mb-2 flex items-center gap-2"><MessageSquare className="w-4 h-4" /> 智能对话</h3>
                       <p className="text-sm text-default-600">
                         与 AI 助手进行自然语言对话，获取帮助、建议和解答。
                       </p>
                       <Link href="/chat" color="primary" className="text-sm mt-2 inline-block">
-                        开始对话 →
+                        开始对话 <ArrowRight className="inline-block w-4 h-4 ml-1" />
                       </Link>
                     </div>
                     <div className="p-4 rounded-lg bg-default-50 border border-default-200">
-                      <h3 className="font-medium mb-2">📝 任务管理</h3>
+                      <h3 className="font-medium mb-2 flex items-center gap-2"><ClipboardList className="w-4 h-4" /> 任务管理</h3>
                       <p className="text-sm text-default-600">
                         创建和管理您的日常任务，设置优先级和提醒，提高工作效率。
                       </p>
                     </div>
                     <div className="p-4 rounded-lg bg-default-50 border border-default-200">
-                      <h3 className="font-medium mb-2">🧠 记忆系统</h3>
+                      <h3 className="font-medium mb-2 flex items-center gap-2"><Brain className="w-4 h-4" /> 记忆系统</h3>
                       <p className="text-sm text-default-600">
                         保存重要信息和对话内容，随时回顾和参考之前的讨论。
                       </p>
@@ -143,19 +143,19 @@ export default function Home() {
                         <h2 className="text-lg font-semibold mb-2">功能介绍</h2>
                         <div className="flex flex-col gap-3">
                           <div className="p-3 rounded-lg bg-default-50 border border-default-200">
-                            <h3 className="font-medium mb-1">💬 智能对话</h3>
+                            <h3 className="font-medium mb-1 flex items-center gap-2"><MessageSquare className="w-4 h-4" /> 智能对话</h3>
                             <p className="text-sm text-default-600">
                               与 AI 助手进行自然语言对话
                             </p>
                           </div>
                           <div className="p-3 rounded-lg bg-default-50 border border-default-200">
-                            <h3 className="font-medium mb-1">📝 任务管理</h3>
+                            <h3 className="font-medium mb-1 flex items-center gap-2"><ClipboardList className="w-4 h-4" /> 任务管理</h3>
                             <p className="text-sm text-default-600">
                               创建和管理日常任务
                             </p>
                           </div>
                           <div className="p-3 rounded-lg bg-default-50 border border-default-200">
-                            <h3 className="font-medium mb-1">🧠 记忆系统</h3>
+                            <h3 className="font-medium mb-1 flex items-center gap-2"><Brain className="w-4 h-4" /> 记忆系统</h3>
                             <p className="text-sm text-default-600">
                               保存重要信息和对话内容
                             </p>
@@ -186,19 +186,6 @@ export default function Home() {
                     </div>
                   </CardBody>
                 </Card>
-              )
-            },
-            {
-              key: "tasks",
-              title: "Today's Tasks",
-              subtitle: "Manage your daily goals",
-              count: todos.filter((t) => !t.completed).length,
-              content: (
-                <TodoCard
-                  todos={todos}
-                  onRefresh={refreshData}
-                  onMobileExpandChange={setIsMobileTodoExpanded}
-                />
               )
             },
             {
