@@ -41,44 +41,91 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
   const PhaseTimeline = ({ todo }: { todo: TodoData }) => {
     if (!todo.phases || todo.phases.length === 0) return null;
 
+    const now = new Date();
+
+    const isPhaseActive = (phase: TaskPhase) => {
+      if (phase.completed) return false;
+      if (phase.startDateTime && phase.endDateTime) {
+        const start = new Date(phase.startDateTime);
+        const end = new Date(phase.endDateTime);
+        return now >= start && now <= end;
+      }
+      const index = todo.phases!.findIndex(p => p.id === phase.id);
+      if (index === 0) return true;
+      return todo.phases![index - 1].completed;
+    };
+
     return (
-      <div className="mt-3 pl-2 relative border-l-2 border-default-200 ml-1.5 space-y-3">
-        {todo.phases.map((phase, index) => {
-          const isLast = index === todo.phases!.length - 1;
-          const isCompleted = phase.completed;
-          const isCurrent = !isCompleted && (index === 0 || todo.phases![index - 1].completed);
+      <div className="mt-4 px-1 relative">
+        <div className="space-y-3">
+          {todo.phases.map((phase, index) => {
+            const isCompleted = phase.completed;
+            const isActive = isPhaseActive(phase);
 
-          return (
-            <div key={phase.id} className="relative pl-4 group/phase">
-              {/* Dot indicator */}
-
-
-
-              <div className="flex flex-col gap-0.5">
-                <div className={`text-xs font-medium ${isCompleted ? "text-default-500 line-through" : "text-foreground"}`}>
+            return (
+              <div
+                key={phase.id}
+                className={`group/phase relative flex gap-3 items-center`}
+              >
+                {/* 状态点 - 使用 Checkbox 或自定义指示器 */}
+                <div className="relative z-10 flex-shrink-0">
                   <Checkbox
                     isSelected={isCompleted}
-                    onValueChange={(v) => handleTogglePhase(todo.id, todo.phases!, phase.id, v)}
-                    color="success"
-                    size="sm"
+                    color={isActive ? "primary" : "success"}
                     radius="full"
+                    onValueChange={(v) => handleTogglePhase(todo.id, todo.phases!, phase.id, v)}
+                    classNames={{
+                      wrapper: `group-hover:scale-110 transition-transform ${isActive ? "ring-2 ring-primary-100 dark:ring-primary-900/30 ring-offset-2 ring-offset-background" : ""}`,
+                      icon: isCompleted ? "text-white" : "",
+                    }}
                   />
-                  {phase.title}
                 </div>
-                {(phase.startDateTime || phase.endDateTime) && (
-                  <div className="text-[10px] text-default-400 flex items-center gap-1">
-                    <CalendarClock className="w-3 h-3" />
-                    <span>
-                      {phase.startDateTime && new Date(phase.startDateTime).toLocaleDateString()}
-                      {phase.startDateTime && phase.endDateTime && " - "}
-                      {phase.endDateTime && new Date(phase.endDateTime).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
+
+                {/* 内容卡片 - 使用 Card */}
+                <Card
+                  shadow="sm"
+                  className={`flex-1 min-w-0 transition-all duration-300 border-1
+                    ${isCompleted
+                      ? "bg-default-50/50 border-default-100 opacity-60 hover:opacity-100"
+                      : isActive
+                        ? "bg-content1 border-primary-200 dark:border-primary-800 shadow-md shadow-primary/5"
+                        : "bg-content1 border-default-100 hover:border-default-200"
+                    }
+                  `}
+                  isPressable
+                  onPress={() => handleTogglePhase(todo.id, todo.phases!, phase.id, !isCompleted)}
+                >
+                  <CardBody className="p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-[14px] font-medium transition-colors ${isCompleted ? "text-default-500 line-through" :
+                        isActive ? "text-primary-600 dark:text-primary-400 font-semibold" : "text-foreground"
+                        }`}>
+                        {phase.title}
+                      </span>
+                      {isActive && !isCompleted && (
+                        <Chip size="sm" color="primary" variant="flat" className="h-5 px-2 text-[10px] font-bold">
+                          进行中
+                        </Chip>
+                      )}
+                    </div>
+
+                    {(phase.startDateTime || phase.endDateTime) && (
+                      <div className={`flex items-center gap-1.5 mt-1.5 text-[11px] font-medium ${isActive ? "text-primary-500/80" : "text-default-400"
+                        }`}>
+                        <CalendarClock className="w-3.5 h-3.5 opacity-70" />
+                        <span>
+                          {phase.startDateTime && new Date(phase.startDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                          {phase.startDateTime && phase.endDateTime && " - "}
+                          {phase.endDateTime && new Date(phase.endDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    )}
+                  </CardBody>
+                </Card>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     );
   };
