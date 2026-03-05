@@ -9,6 +9,14 @@ export interface MemoryData {
     createdAt: string;
 }
 
+export interface TaskPhase {
+    id: string;
+    title: string;
+    startDateTime?: Date;
+    endDateTime?: Date;
+    completed: boolean;
+}
+
 export interface TodoData {
     id: string;
     title: string;
@@ -22,6 +30,7 @@ export interface TodoData {
     cron?: string;
     lastGenerated?: string;
     links?: Record<string, string>; // title: url
+    phases?: TaskPhase[];
 }
 
 export interface LinkMetadata {
@@ -218,11 +227,43 @@ export class FileStorage {
             let todos: TodoData[] = JSON.parse(content);
 
             // 将 ISO 字符串转换回 Date 对象
-            todos = todos.map(todo => ({
-                ...todo,
-                startDateTime: todo.startDateTime ? new Date(todo.startDateTime) : undefined,
-                endDateTime: todo.endDateTime ? new Date(todo.endDateTime) : undefined,
-            }));
+            todos = todos.map(todo => {
+                const parsedPhases = todo.phases?.map(phase => ({
+                    ...phase,
+                    startDateTime: phase.startDateTime ? new Date(phase.startDateTime) : undefined,
+                    endDateTime: phase.endDateTime ? new Date(phase.endDateTime) : undefined,
+                }));
+
+                // 如果有 phases，自动计算主任务的日期范围
+                let calculatedStart = todo.startDateTime ? new Date(todo.startDateTime) : undefined;
+                let calculatedEnd = todo.endDateTime ? new Date(todo.endDateTime) : undefined;
+
+                if (parsedPhases && parsedPhases.length > 0) {
+                    const phaseStarts = parsedPhases.filter(p => p.startDateTime).map(p => p.startDateTime!) as Date[];
+                    const phaseEnds = parsedPhases.filter(p => p.endDateTime).map(p => p.endDateTime!) as Date[];
+
+                    if (phaseStarts.length > 0) {
+                        const earliestStart = new Date(Math.min(...phaseStarts.map(d => d.getTime())));
+                        if (!calculatedStart || earliestStart < calculatedStart) {
+                            calculatedStart = earliestStart;
+                        }
+                    }
+
+                    if (phaseEnds.length > 0) {
+                        const latestEnd = new Date(Math.max(...phaseEnds.map(d => d.getTime())));
+                        if (!calculatedEnd || latestEnd > calculatedEnd) {
+                            calculatedEnd = latestEnd;
+                        }
+                    }
+                }
+
+                return {
+                    ...todo,
+                    startDateTime: calculatedStart,
+                    endDateTime: calculatedEnd,
+                    phases: parsedPhases,
+                };
+            });
 
             // Check for cron tasks and generate new instances if needed
             let hasChanges = false;

@@ -73,6 +73,11 @@ export async function createTodo(data: {
   priority?: number;
   cron?: string;
   links?: Record<string, string>;
+  phases?: Array<{
+    title: string;
+    startDateTime?: Date;
+    endDateTime?: Date;
+  }>;
 }) {
   const todo = await storage.saveTodo({
     title: data.title,
@@ -83,6 +88,13 @@ export async function createTodo(data: {
     completed: false,
     cron: data.cron,
     links: data.links,
+    phases: data.phases?.map(p => ({
+      id: Math.random().toString(36).substring(2, 9),
+      title: p.title,
+      startDateTime: p.startDateTime,
+      endDateTime: p.endDateTime,
+      completed: false
+    })),
   });
   revalidatePath("/");
   return todo;
@@ -101,6 +113,13 @@ export async function updateTodo(id: string, data: {
   priority?: number;
   completed?: boolean;
   links?: Record<string, string>;
+  phases?: Array<{
+    id: string;
+    title: string;
+    startDateTime?: Date;
+    endDateTime?: Date;
+    completed: boolean;
+  }>;
 }) {
   // 获取所有 todos
   const todos = await storage.getTodos();
@@ -115,6 +134,7 @@ export async function updateTodo(id: string, data: {
     if (data.priority !== undefined) todo.priority = data.priority;
     if (data.completed !== undefined) todo.completed = data.completed;
     if (data.links !== undefined) todo.links = data.links;
+    if (data.phases !== undefined) todo.phases = data.phases;
     todo.updatedAt = new Date();
 
     // 保存回存储

@@ -1,15 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { TodoData } from "@/lib/storage";
+import { TodoData, TaskPhase } from "@/lib/storage";
 import { Button } from "@heroui/button";
 import { useTodoPanelStore } from "@/lib/stores/todo-panel-store";
 import { Card, CardHeader, CardBody } from "@heroui/card";
 import { ScrollShadow } from "@heroui/scroll-shadow";
 import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
-import { toggleTodo, deleteTodo } from "@/app/actions";
-import { ChevronLeft, ChevronRight, Link as LinkIcon, X, PartyPopper } from "lucide-react";
+import { toggleTodo, deleteTodo, updateTodo } from "@/app/actions";
+import { ChevronLeft, ChevronRight, Link as LinkIcon, X, PartyPopper, CalendarClock, CheckCircle2, Circle } from "lucide-react";
 
 interface DesktopTodoPanelProps {
   todos: TodoData[];
@@ -27,6 +27,60 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
   const handleDeleteTodo = async (id: string) => {
     await deleteTodo(id);
     onRefresh();
+  };
+
+  const handleTogglePhase = async (todoId: string, phases: TaskPhase[], phaseId: string, completed: boolean) => {
+    const newPhases = phases.map(p => p.id === phaseId ? { ...p, completed } : p);
+    // Check if all phases are completed, maybe auto-complete the todo?
+    // For now, just update the phase.
+    await updateTodo(todoId, { phases: newPhases });
+    onRefresh();
+  }
+
+  // 复用组件：阶段时间线
+  const PhaseTimeline = ({ todo }: { todo: TodoData }) => {
+    if (!todo.phases || todo.phases.length === 0) return null;
+
+    return (
+      <div className="mt-3 pl-2 relative border-l-2 border-default-200 ml-1.5 space-y-3">
+        {todo.phases.map((phase, index) => {
+          const isLast = index === todo.phases!.length - 1;
+          const isCompleted = phase.completed;
+          const isCurrent = !isCompleted && (index === 0 || todo.phases![index - 1].completed);
+
+          return (
+            <div key={phase.id} className="relative pl-4 group/phase">
+              {/* Dot indicator */}
+
+
+
+              <div className="flex flex-col gap-0.5">
+                <div className={`text-xs font-medium ${isCompleted ? "text-default-500 line-through" : "text-foreground"}`}>
+                  <Checkbox
+                    isSelected={isCompleted}
+                    onValueChange={(v) => handleTogglePhase(todo.id, todo.phases!, phase.id, v)}
+                    color="success"
+                    size="sm"
+                    radius="full"
+                  />
+                  {phase.title}
+                </div>
+                {(phase.startDateTime || phase.endDateTime) && (
+                  <div className="text-[10px] text-default-400 flex items-center gap-1">
+                    <CalendarClock className="w-3 h-3" />
+                    <span>
+                      {phase.startDateTime && new Date(phase.startDateTime).toLocaleDateString()}
+                      {phase.startDateTime && phase.endDateTime && " - "}
+                      {phase.endDateTime && new Date(phase.endDateTime).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   // 复用组件：单个待办行
@@ -97,6 +151,9 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                   </Chip>
                 ))}
             </div>
+          )}
+          {todo.phases && todo.phases.length > 0 && (
+            <PhaseTimeline todo={todo} />
           )}
         </div>
         <Button

@@ -8,27 +8,28 @@ import { TodoData } from "@/lib/storage";
  * 创建待办事项工具
  */
 export const createTodoTool = tool({
-  description: "创建待办事项。当用户提到具体时间（小时、分钟、时间段）时，必须设置 startDateTime 和 endDateTime。",
+  description: "创建待办事项。当用户提到具体时间（小时、分钟、时间段）时，必须设置 startDateTime 和 endDateTime。对于分阶段任务，使用 phases 参数，任务的日期范围会自动从各阶段计算得出。",
   inputSchema: z.object({
     title: z.string().min(3, "任务标题至少需要3个字符").describe("任务标题，简短明确，不要包含时间信息，至少3个字符"),
     description: z.string().optional().describe("任务描述，可选"),
-    startDateTime: z.string().optional().describe("开始时间（UTC格式，ISO字符串）。如：2026-02-11T11:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
-    endDateTime: z.string().optional().describe("结束时间（UTC格式，ISO字符串）。如：2026-02-11T14:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置"),
+    startDateTime: z.string().optional().describe("开始时间（UTC格式，ISO字符串）。如：2026-02-11T11:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置。如果使用 phases，此字段可省略，会自动计算"),
+    endDateTime: z.string().optional().describe("结束时间（UTC格式，ISO字符串）。如：2026-02-11T14:57:00.000Z。注意：这是UTC时间，比北京时间慢8小时。当用户提到具体时间时必须设置。如果使用 phases，此字段可省略，会自动计算"),
     priority: z.number().optional().describe("优先级：1最低，5最高，默认1"),
     links: z.record(z.string(), z.string()).optional().describe("相关链接，key为链接标题，value为URL"),
+    phases: z.array(z.object({
+      title: z.string().describe("阶段标题，如：开发、测试、上线"),
+      startDateTime: z.string().optional().describe("阶段开始时间（UTC格式，ISO字符串）"),
+      endDateTime: z.string().optional().describe("阶段结束时间（UTC格式，ISO字符串）"),
+    })).optional().describe("任务阶段列表，用于分阶段任务。任务的日期范围会自动从各阶段的日期计算得出"),
   }),
   execute: async (data) => {
     if (!data.title || data.title.length < 3) {
       return `错误：任务标题至少需要3个字符。请提供一个更详细的任务标题。`;
     }
-    const todoData: TodoData = {
-      id: generateId(),
+    const todoData: any = {
       title: data.title,
       description: data.description,
       priority: data.priority || 1,
-      completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     };
     if (data.startDateTime) {
       todoData.startDateTime = new Date(data.startDateTime);
@@ -38,6 +39,13 @@ export const createTodoTool = tool({
     }
     if (data.links) {
       todoData.links = data.links;
+    }
+    if (data.phases) {
+      todoData.phases = data.phases.map((p) => ({
+        title: p.title,
+        startDateTime: p.startDateTime ? new Date(p.startDateTime) : undefined,
+        endDateTime: p.endDateTime ? new Date(p.endDateTime) : undefined,
+      }));
     }
     await createTodo(todoData);
     if (data.startDateTime && data.endDateTime) {
@@ -75,6 +83,13 @@ export const updateTodoTool = tool({
     endDateTime: z.string().optional().describe("新结束时间（ISO格式）"),
     priority: z.number().optional().describe("新优先级（1-5）"),
     links: z.record(z.string(), z.string()).optional().describe("相关链接，key为链接标题，value为URL"),
+    phases: z.array(z.object({
+      id: z.string().describe("阶段ID（更新时必填，新增时自动生成）"),
+      title: z.string().describe("阶段标题"),
+      startDateTime: z.string().optional().describe("阶段开始时间"),
+      endDateTime: z.string().optional().describe("阶段结束时间"),
+      completed: z.boolean().optional().describe("是否完成"),
+    })).optional().describe("更新任务阶段列表"),
   }),
   execute: async (data) => {
     await updateTodo(data.id, {
@@ -84,6 +99,13 @@ export const updateTodoTool = tool({
       endDateTime: data.endDateTime,
       priority: data.priority,
       links: data.links,
+      phases: data.phases ? data.phases.map(p => ({
+        id: p.id,
+        title: p.title,
+        startDateTime: p.startDateTime ? new Date(p.startDateTime) : undefined,
+        endDateTime: p.endDateTime ? new Date(p.endDateTime) : undefined,
+        completed: p.completed !== undefined ? p.completed : false
+      })) : undefined,
     });
     return `已更新任务`;
   },
