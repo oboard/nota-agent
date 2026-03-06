@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { addMemory, addLongTermMemory } from "@/app/actions";
+import { addMemory, addLongTermMemory, getMemories, getLongTermMemories } from "@/app/actions";
+import { storage } from "@/lib/storage";
 
 /**
  * 清理记忆内容，移除HTML标签、XML参数等格式化标记
@@ -139,11 +140,75 @@ export const saveLongTermMemoryTool = tool({
 });
 
 /**
+ * 检索相关记忆工具
+ * 根据当前上下文检索最相关的记忆
+ */
+export const retrieveRelevantMemoriesTool = tool({
+  description: "根据当前对话上下文检索最相关的记忆。当需要参考用户的历史信息、偏好或上下文时使用此工具。",
+  inputSchema: z.object({
+    context: z.string().describe("当前对话上下文或需要检索相关信息的主题"),
+    limit: z.number().optional().describe("返回的记忆数量限制，默认5条").default(5),
+  }),
+  execute: async ({ context, limit }) => {
+    const relevantMemories = await storage.getRelevantMemories(context, limit);
+
+    if (relevantMemories.length === 0) {
+      return "未找到相关记忆";
+    }
+
+    return `找到${relevantMemories.length}条相关记忆：\n` +
+      relevantMemories.map((memory, index) =>
+        `${index + 1}. ${memory.content} (${new Date(memory.createdAt).toLocaleDateString('zh-CN')})`
+      ).join('\n');
+  },
+});
+
+/**
+ * 获取记忆洞察工具
+ * 分析用户的记忆模式，提供洞察
+ */
+export const getMemoryInsightsTool = tool({
+  description: "分析用户的记忆模式和偏好，提供洞察。当需要了解用户的长期行为模式或偏好时使用。",
+  inputSchema: z.object({}),
+  execute: async () => {
+    const clusters = await storage.getMemoryClusters();
+    const insights = await storage.getMemoryClusters();
+
+    if (insights.length === 0) {
+      return "暂无足够的记忆数据来生成洞察";
+    }
+
+    return "基于您的记忆分析：\n" + insights.map(insight => `• ${insight}`).join('\n');
+  },
+});
+
+/**
+ * 压缩记忆工具
+ * 将旧记忆压缩成聚类，减少存储空间
+ */
+export const compressMemoriesTool = tool({
+  description: "压缩30天前的记忆，将其聚类成主题摘要。当记忆过多或需要整理时使用。",
+  inputSchema: z.object({}),
+  execute: async () => {
+    const clusters = await storage.compressMemories();
+
+    if (clusters.length === 0) {
+      return "没有需要压缩的记忆";
+    }
+
+    return `已压缩${clusters.length}个记忆主题：\n` +
+      clusters.map(cluster =>
+        `• ${cluster.theme}: ${cluster.memories.length}条记忆，摘要：${cluster.summary}`
+      ).join('\n');
+  },
+});
+
+/**
  * 自动记忆提取工具（用于 onFinish 回调中）
  * 功能与 saveMemoryTool 相同，但描述更简洁
  */
 export const autoSaveMemoryTool = tool({
-  description: "保存值得长期记忆的信息（事实、偏好、想法等）。自动判断是短期还是长期记忆。",
+  description: "保存值得长期记忆的信息（事实、偏好、想法等）。自动判断是短期还是长期记忆，并触发智能聚类。",
   inputSchema: z.object({
     content: z.string().describe("提取出的核心记忆内容，简练陈述"),
   }),
@@ -157,10 +222,10 @@ export const autoSaveMemoryTool = tool({
 
     if (isLongTerm) {
       await addLongTermMemory(cleanedContent);
-      return "已保存为长期记忆";
+      return "已保存为长期记忆，将触发智能聚类";
     } else {
       await addMemory(cleanedContent);
-      return "记忆已保存";
+      return "记忆已保存，将触发智能处理";
     }
   },
 });
