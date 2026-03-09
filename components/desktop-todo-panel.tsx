@@ -162,7 +162,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
             </span>
           </div>
           {todo.description && (
-            <p className={`text-[10px] mt-1 line-clamp-2 leading-relaxed ${todo.completed ? "line-through text-default-300" : "text-default-600"}`}>
+            <p className={`text-[10px] mt-1 leading-relaxed ${todo.completed ? "line-through text-default-300" : "text-default-600"}`}>
               {todo.description}
             </p>
           )}
