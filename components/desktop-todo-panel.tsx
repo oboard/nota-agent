@@ -8,8 +8,8 @@ import { Card, CardHeader, CardBody } from "@heroui/card";
 import { ScrollShadow } from "@heroui/scroll-shadow";
 import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
-import { toggleTodo, deleteTodo, updateTodo } from "@/app/actions";
-import { ChevronLeft, ChevronRight, Link as LinkIcon, X, PartyPopper, CalendarClock, CheckCircle2, Circle } from "lucide-react";
+import { toggleTodo, deleteTodo, updateTodo, toggleSuspended } from "@/app/actions";
+import { ChevronLeft, ChevronRight, Link as LinkIcon, X, PartyPopper, CalendarClock, CheckCircle2, Circle, Pause, Play } from "lucide-react";
 
 interface DesktopTodoPanelProps {
   todos: TodoData[];
@@ -21,6 +21,11 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
 
   const handleToggleTodo = async (id: string, completed: boolean) => {
     await toggleTodo(id, completed);
+    onRefresh();
+  };
+
+  const handleToggleSuspended = async (id: string, suspended: boolean) => {
+    await toggleSuspended(id, suspended);
     onRefresh();
   };
 
@@ -151,18 +156,29 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
           color="success"
           size="sm"
           radius="full"
+          isDisabled={todo.suspended}
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h4 className={`font-medium text-xs leading-snug ${todo.completed ? "line-through text-default-400" : "text-foreground"}`}>
+            <h4 className={`font-medium text-xs leading-snug ${todo.completed ? "line-through text-default-400" : todo.suspended ? "text-default-400 italic" : "text-foreground"}`}>
               {todo.title}
             </h4>
+            {todo.suspended && (
+              <Chip
+                size="sm"
+                variant="flat"
+                color="default"
+                className="h-4 text-[10px] px-1 min-w-0 bg-default-200/50 animate-[pulse_2s_ease-in-out_infinite]"
+              >
+                已挂起
+              </Chip>
+            )}
             <span className="text-[10px] text-default-400 font-mono">
               #{todo.id.substring(0, 6)}
             </span>
           </div>
           {todo.description && (
-            <p className={`text-[10px] mt-1 leading-relaxed ${todo.completed ? "line-through text-default-300" : "text-default-600"}`}>
+            <p className={`text-[10px] mt-1 leading-relaxed ${todo.completed ? "line-through text-default-300" : todo.suspended ? "text-default-300" : "text-default-600"}`}>
               {todo.description}
             </p>
           )}
@@ -207,7 +223,19 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
           isIconOnly
           size="sm"
           variant="light"
-          className="opacity-0 group-hover:opacity-100 transition-opacity -mr-1 -mt-1 text-default-300 hover:text-danger hover:bg-danger-50 h-5 w-5 min-w-5"
+          className="opacity-0 group-hover:opacity-100 transition-all duration-300 -mr-1 -mt-1 text-default-300 hover:text-default-500 hover:bg-default-100 hover:scale-110 active:scale-95 h-5 w-5 min-w-5"
+          onPress={() => handleToggleSuspended(todo.id, !todo.suspended)}
+          title={todo.suspended ? "恢复任务" : "挂起任务"}
+        >
+          <span className={todo.suspended ? "animate-[spin_0.5s_ease-out]" : ""}>
+            {todo.suspended ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+          </span>
+        </Button>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="light"
+          className="opacity-0 group-hover:opacity-100 transition-all duration-300 -mr-1 -mt-1 text-default-300 hover:text-danger hover:bg-danger-50 hover:scale-110 active:scale-95 h-5 w-5 min-w-5"
           onPress={() => handleDeleteTodo(todo.id)}
         >
           <X className="w-3 h-3" />
@@ -318,7 +346,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-default-800">待办事项</span>
                 <Chip size="sm" variant="shadow" color="primary">
-                  {todos.filter((t) => !t.completed).length}
+                  {todos.filter((t) => !t.completed && !t.suspended).length}
                 </Chip>
               </div>
             </CardHeader>
@@ -342,6 +370,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
 
                         const todayTodos = todos.filter((todo) => {
                           if (todo.completed) return false;
+                          if (todo.suspended) return false;
                           if (!todo.startDateTime) return false;
 
                           const startTime = new Date(todo.startDateTime);
@@ -361,7 +390,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="今日任务"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"
                             todos={todayTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-primary/30 bg-primary/5 transition-all duration-300 hover:shadow-md hover:border-primary/50"
+                            itemClassName="group relative p-2.5 rounded-lg border border-primary/30 bg-primary/5 transition-all duration-300 hover:shadow-md hover:border-primary/50 hover:scale-[1.02] active:scale-[0.98]"
                             getDateChip={renderTodayChip}
                           />
                         );
@@ -370,7 +399,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                       {/* 无日期 */}
                       {(() => {
                         const noDateTodos = todos.filter(
-                          (todo) => !todo.completed && !todo.startDateTime
+                          (todo) => !todo.completed && !todo.suspended && !todo.startDateTime
                         );
 
                         return (
@@ -378,7 +407,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="无日期"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-300"
                             todos={noDateTodos}
-                            itemClassName={`group relative p-2.5 rounded-lg border transition-all duration-200 hover:shadow-md ${"bg-content1 border-default-100 hover:border-default-300"}`}
+                            itemClassName={`group relative p-2.5 rounded-lg border transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] ${"bg-content1 border-default-100 hover:border-default-300"}`}
                           />
                         );
                       })()}
@@ -388,6 +417,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         const now = new Date();
                         const overdueTodos = todos.filter(todo => {
                           if (todo.completed) return false;
+                          if (todo.suspended) return false;
                           // 使用结束时间判断逾期，如果没有结束时间则使用开始时间
                           const endTime = todo.endDateTime ? new Date(todo.endDateTime) : (todo.startDateTime ? new Date(todo.startDateTime) : null);
                           return endTime && endTime < now;
@@ -398,7 +428,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="逾期未完成"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-danger animate-pulse"
                             todos={overdueTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-danger/30 bg-danger/5 transition-all duration-300 hover:shadow-md hover:border-danger/50"
+                            itemClassName="group relative p-2.5 rounded-lg border border-danger/30 bg-danger/5 transition-all duration-300 hover:shadow-md hover:border-danger/50 hover:scale-[1.02] active:scale-[0.98]"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip
@@ -424,7 +454,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         endOfWeek.setDate(today.getDate() + (7 - today.getDay()) % 7);
                         endOfWeek.setHours(23, 59, 59, 999);
 
-                        const thisWeekTodos = todos.filter(todo => !todo.completed && todo.startDateTime && (() => {
+                        const thisWeekTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
                           const todoDate = new Date(todo.startDateTime);
                           todoDate.setHours(0, 0, 0, 0);
                           return todoDate > today && todoDate <= endOfWeek;
@@ -435,7 +465,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="本周"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary"
                             todos={thisWeekTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-primary/20 bg-primary/5 transition-all duration-200 hover:shadow-md"
+                            itemClassName="group relative p-2.5 rounded-lg border border-primary/20 bg-primary/5 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
@@ -459,7 +489,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
                         endOfNextWeek.setHours(23, 59, 59, 999);
 
-                        const nextWeekTodos = todos.filter(todo => !todo.completed && todo.startDateTime && (() => {
+                        const nextWeekTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
                           const todoDate = new Date(todo.startDateTime);
                           return todoDate >= startOfNextWeek && todoDate <= endOfNextWeek;
                         })());
@@ -469,7 +499,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="下周"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-secondary"
                             todos={nextWeekTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-secondary/20 bg-secondary/5 transition-all duration-200 hover:shadow-md"
+                            itemClassName="group relative p-2.5 rounded-lg border border-secondary/20 bg-secondary/5 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" color="secondary" className="h-4 text-[10px] px-1 min-w-0">
@@ -496,7 +526,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         endOfNextMonth.setMonth(today.getMonth() + 1);
                         endOfNextMonth.setHours(23, 59, 59, 999);
 
-                        const nextMonthTodos = todos.filter(todo => !todo.completed && todo.startDateTime && (() => {
+                        const nextMonthTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
                           const todoDate = new Date(todo.startDateTime);
                           return todoDate > endOfNextWeek && todoDate <= endOfNextMonth;
                         })());
@@ -506,7 +536,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="下个月"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-info"
                             todos={nextMonthTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-info/20 bg-info/5 transition-all duration-200 hover:shadow-md"
+                            itemClassName="group relative p-2.5 rounded-lg border border-info/20 bg-info/5 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
@@ -527,14 +557,14 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         endOfNextMonth.setMonth(today.getMonth() + 1);
                         endOfNextMonth.setHours(23, 59, 59, 999);
 
-                        const futureTodos = todos.filter(todo => !todo.completed && todo.startDateTime && new Date(todo.startDateTime) > endOfNextMonth);
+                        const futureTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && new Date(todo.startDateTime) > endOfNextMonth);
 
                         return futureTodos.length > 0 && (
                           <SectionBlock
                             title="未来"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400"
                             todos={futureTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-default-200 bg-default-50 transition-all duration-200 hover:shadow-md"
+                            itemClassName="group relative p-2.5 rounded-lg border border-default-200 bg-default-50 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" className="h-4 text-[10px] px-1 bg-default-100 text-default-500 min-w-0">
@@ -543,6 +573,20 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                                 </Chip>
                               ) : null
                             )}
+                          />
+                        );
+                      })()}
+
+                      {/* 已挂起 */}
+                      {(() => {
+                        const suspendedTodos = todos.filter(todo => todo.suspended);
+
+                        return suspendedTodos.length > 0 && (
+                          <SectionBlock
+                            title="已挂起"
+                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400 animate-[pulse_3s_ease-in-out_infinite]"
+                            todos={suspendedTodos}
+                            itemClassName="group relative p-2.5 rounded-lg border border-default-200 bg-default-100/50 opacity-70 hover:opacity-100 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                           />
                         );
                       })()}

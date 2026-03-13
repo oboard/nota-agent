@@ -105,6 +105,11 @@ export async function toggleTodo(id: string, completed: boolean) {
   revalidatePath("/");
 }
 
+export async function toggleSuspended(id: string, suspended: boolean) {
+  await storage.toggleSuspended(id, suspended);
+  revalidatePath("/");
+}
+
 export async function updateTodo(id: string, data: {
   title?: string;
   description?: string;
@@ -112,6 +117,7 @@ export async function updateTodo(id: string, data: {
   endDateTime?: string;
   priority?: number;
   completed?: boolean;
+  suspended?: boolean;
   links?: Record<string, string>;
   phases?: Array<{
     id: string;
@@ -133,6 +139,7 @@ export async function updateTodo(id: string, data: {
     if (data.endDateTime !== undefined) todo.endDateTime = new Date(data.endDateTime);
     if (data.priority !== undefined) todo.priority = data.priority;
     if (data.completed !== undefined) todo.completed = data.completed;
+    if (data.suspended !== undefined) todo.suspended = data.suspended;
     if (data.links !== undefined) todo.links = data.links;
     if (data.phases !== undefined) todo.phases = data.phases;
     todo.updatedAt = new Date();

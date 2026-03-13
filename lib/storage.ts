@@ -28,6 +28,7 @@ export interface TodoData {
     endDateTime?: Date;
     priority: number;
     completed: boolean;
+    suspended?: boolean; // 挂起状态
     createdAt: Date;
     updatedAt: Date;
     cron?: string;
@@ -460,6 +461,17 @@ export class FileStorage {
 
         if (todo) {
             todo.completed = completed;
+            todo.updatedAt = new Date();
+            await this.saveTodos(todos);
+        }
+    }
+
+    async toggleSuspended(id: string, suspended: boolean): Promise<void> {
+        const todos = await this.getTodos();
+        const todo = todos.find(t => t.id === id);
+
+        if (todo) {
+            todo.suspended = suspended;
             todo.updatedAt = new Date();
             await this.saveTodos(todos);
         }
