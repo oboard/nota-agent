@@ -6,15 +6,16 @@ import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 import { generateEmbedding, ensurePreTodayVectorized, getCachedEmbeddingsForFile } from "./vectorizer.ts";
 
-// Use CommonJS-style __dirname for better compatibility
-const __dirname = path.resolve();
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from the root .env file
-dotenv.config({ path: path.join(__dirname, "../.env") });
+dotenv.config({ path: path.join(__dirname, ".env") });
 
-const MEMORIES_DIR = path.join(__dirname, "data/memories");
-const LAST_RUN_FILE = path.join(__dirname, "data/memories/.memory-consolidation-last-run");
-const MEMORY_CLUSTERS_FILE = path.join(__dirname, "data/memories/.memory-clusters.json");
+const MEMORIES_DIR = path.join(__dirname, "../data/memories");
+const LAST_RUN_FILE = path.join(__dirname, "../data/memories/.memory-consolidation-last-run");
+const MEMORY_CLUSTERS_FILE = path.join(__dirname, "../data/memories/.memory-clusters.json");
 
 // Initialize AI Model
 // Using the same configuration as in app/api/chat/route.ts

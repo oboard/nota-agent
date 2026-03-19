@@ -25,10 +25,7 @@ export async function POST(req: Request) {
   const model = createOpenAICompatible({
     name: modelName,
     baseURL: process.env.MODEL_API_BASE || "https://api.openai.com/v1",
-    // apiKey: process.env.MODEL_API_KEY,
-    headers: {
-      "Authorization": `Bearer ${process.env.MODEL_API_KEY}`
-    }
+    apiKey: process.env.MODEL_API_KEY,
   })(modelName)
 
   // 获取上下文信息和技能
