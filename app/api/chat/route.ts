@@ -11,6 +11,7 @@ import {
   saveMemoryTool,
   saveLongTermMemoryTool,
   autoSaveMemoryTool,
+  memoryGrepTool,
   cleanMemoryContent,
   isValidMemoryContent,
   loadSkillTool,
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
       loadSkill: loadSkillTool,
       saveMemory: saveMemoryTool,
       saveLongTermMemory: saveLongTermMemoryTool,
+      memoryGrep: memoryGrepTool,
     },
     onFinish: async ({ text }) => {
       // 保存对话记录

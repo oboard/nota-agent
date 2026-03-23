@@ -204,6 +204,30 @@ export const compressMemoriesTool = tool({
 });
 
 /**
+ * 搜索记忆工具
+ * 根据关键词搜索记忆内容，支持正则表达式
+ */
+export const memoryGrepTool = tool({
+  description: "搜索记忆内容。当用户想要查找之前保存的特定记忆时使用此工具。支持关键词搜索和正则表达式。",
+  inputSchema: z.object({
+    query: z.string().describe("搜索关键词或正则表达式"),
+    limit: z.number().optional().describe("返回结果数量限制，默认20条").default(20),
+  }),
+  execute: async ({ query, limit }) => {
+    const results = await storage.searchMemories(query, limit);
+
+    if (results.length === 0) {
+      return `未找到与"${query}"相关的记忆`;
+    }
+
+    return `找到${results.length}条相关记忆：\n` +
+      results.map((memory, index) =>
+        `${index + 1}. ${memory.content}\n   [${new Date(memory.createdAt).toLocaleDateString('zh-CN')} - ${memory.type}]`
+      ).join('\n\n');
+  },
+});
+
+/**
  * 自动记忆提取工具（用于 onFinish 回调中）
  * 功能与 saveMemoryTool 相同，但描述更简洁
  */

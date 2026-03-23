@@ -294,6 +294,38 @@ export class FileStorage {
         return [];
     }
 
+    /**
+     * 搜索记忆 - 基于关键词搜索记忆内容
+     */
+    async searchMemories(query: string, limit: number = 20): Promise<MemoryData[]> {
+        const allMemories = await this.getMemories(100);
+        const queryLower = query.toLowerCase();
+
+        // 支持正则表达式搜索
+        let regex: RegExp | null = null;
+        try {
+            regex = new RegExp(query, 'i');
+        } catch {
+            // 如果不是有效的正则，使用普通文本搜索
+        }
+
+        const matchedMemories = allMemories.filter(memory => {
+            if (regex) {
+                return regex.test(memory.content);
+            }
+            // 简单的关键词包含搜索
+            const contentLower = memory.content.toLowerCase();
+            // 支持多个关键词（用空格分隔）
+            const keywords = queryLower.split(/\s+/).filter(k => k.length > 0);
+            return keywords.every(keyword => contentLower.includes(keyword));
+        });
+
+        // 按时间排序，最新的在前面
+        return matchedMemories
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, limit);
+    }
+
     private parseMemoriesFromMarkdown(content: string, fileName: string): MemoryData[] {
         const memories: MemoryData[] = [];
         const entries = content.split('---');

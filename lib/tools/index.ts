@@ -16,6 +16,7 @@ export {
   saveMemoryTool,
   saveLongTermMemoryTool,
   autoSaveMemoryTool,
+  memoryGrepTool,
   cleanMemoryContent,
   isValidMemoryContent,
   isLongTermMemoryContent,
