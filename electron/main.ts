@@ -114,7 +114,7 @@ const createWindow = () => {
 
   // 开发环境加载本地服务器，生产环境加载构建后的文件
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3000')
+    mainWindow.loadURL('http://localhost:2342')
     mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))

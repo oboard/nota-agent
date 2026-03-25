@@ -5,13 +5,11 @@ import { useChat } from "@ai-sdk/react";
 import { Button } from "@heroui/button";
 import { Textarea } from "@heroui/input";
 import { ScrollShadow } from "@heroui/scroll-shadow";
-import { Chip } from "@heroui/chip";
-import { Avatar } from "@heroui/avatar";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Drawer, DrawerContent } from "@heroui/drawer";
 import { Spinner } from "@heroui/spinner";
 import { addMemory, getTodos } from "@/app/actions";
-import { DefaultChatTransport, getToolName, lastAssistantMessageIsCompleteWithToolCalls, generateId } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls, generateId } from "ai";
 import { Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
 import { mermaid } from '@streamdown/mermaid';
@@ -22,7 +20,8 @@ import { saveChat, loadMoreMessages, scrollToDate } from '@/app/actions';
 import { addTimestampSeparators } from '@/lib/chat-utils';
 import { DatePanel } from '@/components/date-panel';
 import { DesktopTodoPanel } from "./desktop-todo-panel";
-import { Calendar, ChevronLeft, ListTodo, ImageIcon, Check, Cog, Brain, Wrench, Save, ArrowUp } from 'lucide-react';
+import { MessageItem, MemoizedAvatar } from "./message-item";
+import { Calendar, ChevronLeft, ListTodo, ImageIcon, Save, ArrowUp } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
 
@@ -40,19 +39,6 @@ interface ChatInterfaceProps {
 }
 
 const plugins = { code, mermaid, math, cjk };
-
-// 优化 Avatar 组件，避免不必要的重新渲染
-const MemoizedAvatar = memo(({ role }: { role: string }) => (
-  <Avatar
-    src={role === "user" ? undefined : "https://i.pravatar.cc/150?u=nota"}
-    name={role === "user" ? "User" : "Nota"}
-    size="sm"
-    className="flex-shrink-0 mt-1 w-8 h-8 lg:w-10 lg:h-10"
-    showFallback
-  />
-));
-
-MemoizedAvatar.displayName = 'MemoizedAvatar';
 
 export function ChatInterface({ chatId, initialMessages = [], memories = [] }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
@@ -495,167 +481,14 @@ export function ChatInterface({ chatId, initialMessages = [], memories = [] }: C
                   </div>
                 )}
 
-                {messagesWithTimestamps.map((item: any, index: number) => {
-                  // 时间戳分隔符
-                  if (item.type === 'timestamp') {
-                    return (
-                      <div key={`timestamp-${item.timestamp}-${index}`} className="flex justify-center py-2">
-                        <div className="bg-default-100 px-3 py-1 rounded-full text-xs text-default-500">
-                          {item.displayTime}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // 普通消息
-                  const m = item as any;
-                  const safeParts = Array.isArray(m?.parts) ? m.parts : [];
-                  return (
-                    <div
-                      key={`${m?.id ?? 'message'}-${index}`}
-                      data-message-id={m?.id || `message-${index}`}
-                      className={`flex gap-2 lg:gap-3 ${m?.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                    >
-                      <MemoizedAvatar role={m?.role} />
-                      <div className={`flex flex-col max-w-[85%] lg:max-w-[60%] xl:max-w-[500px] min-w-0 ${m?.role === "user" ? "items-end" : "items-start"}`}>
-                        <div
-                          className={`rounded-2xl space-y-1.5 px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base max-w-full overflow-hidden ${m?.role === "user"
-                            ? "bg-default-200 text-foreground rounded-tr-none"
-                            : "bg-default-100 text-foreground rounded-tl-none shadow-sm"
-                            }`}
-                        >
-
-                          {safeParts.map((part: any, index: number) => {
-                            switch (part.type) {
-                              case 'text':
-                                return (
-                                  <div key={index} className="min-w-0 overflow-hidden break-words">
-                                    <Streamdown
-                                      plugins={plugins}
-                                      isAnimating={status === 'streaming' && m.role === 'assistant' && index === m.parts.length - 1}
-                                      className={`${m.role === "user" ? "prose-invert" : "prose-neutral"} prose-pre:overflow-x-auto prose-code:break-all prose-p:my-1 prose-headings:my-2`}
-                                    >
-                                      {part.text}
-                                    </Streamdown>
-                                  </div>
-                                );
-                              case 'reasoning':
-                                return (
-                                  <Accordion
-                                    key={index}
-                                    variant="bordered"
-                                    className="mt-1">
-                                    <AccordionItem
-                                      key={`reasoning-${index}`}
-                                      aria-label="Reasoning"
-                                      title={
-                                        <div className="flex items-center gap-1.5 text-xs">
-                                          <Brain className="w-3 h-3" />
-                                          <span className="font-medium text-blue-600">
-                                            {part.state === 'streaming' ? '思考中...' : '思考过程'}
-                                          </span>
-                                          {part.state === 'streaming' && (
-                                            <div className="flex gap-0.5">
-                                              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                            </div>
-                                          )}
-                                        </div>
-                                      }
-                                    >
-                                      <div className="p-2 rounded bg-blue-50/50 border border-blue-100 text-xs w-full">
-                                        <div className="text-blue-700 opacity-90 italic">
-                                          <Streamdown
-                                            plugins={plugins}
-                                            isAnimating={part.state === 'streaming'}
-                                            className="prose-blue text-xs prose-p:my-0.5"
-                                          >
-                                            {part.text}
-                                          </Streamdown>
-                                        </div>
-                                      </div>
-                                    </AccordionItem>
-                                  </Accordion>
-                                );
-                              case 'tool-call':
-                              case 'tool-call-streaming': {
-                                const toolCallId = part.toolCallId;
-                                const toolName = getToolName(part);
-                                return (
-                                  <div key={toolCallId} className="mt-1 p-2 rounded bg-background/50 border border-default-200/50 text-xs w-full">
-                                    <div className="flex items-center gap-1.5">
-                                      {toolName === "createTodo" ? <Check className="w-3 h-3" /> : <Cog className="w-3 h-3" />}
-                                      <span className="font-medium opacity-80">{toolName}</span>
-                                      <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px]">Running</Chip>
-                                    </div>
-                                    {toolName === "createTodo" && part.output?.title && (
-                                      <div className="font-medium mt-0.5">{part.output.title}</div>
-                                    )}
-                                    {toolName === "saveMemory" && part.args?.content && (
-                                      <div className="italic opacity-80 mt-0.5">"{part.args.content}"</div>
-                                    )}
-                                  </div>
-                                );
-                              }
-                              case 'tool-result':
-                                return (
-                                  <div key={part.toolCallId} className="mt-1 p-1.5 rounded bg-success-50/50 border border-success-100 text-[10px] w-full">
-                                    <div className="flex items-center gap-1.5 text-success-600">
-                                      <Check className="w-3 h-3" />
-                                      <span>Completed: {part.toolName}</span>
-                                    </div>
-                                  </div>
-                                );
-                              case 'tool-error':
-                                return (
-                                  <div key={part.toolCallId} className="mt-1 p-1.5 rounded bg-danger-50/50 border border-danger-100 text-[10px] text-danger w-full">
-                                    Error: {part.errorText}
-                                  </div>
-                                );
-                              default:
-                                // 兼容更多工具与步骤类型显示
-                                if (typeof part.type === 'string') {
-                                  if (part.type.startsWith('tool-')) {
-                                    const name = part.type.replace(/^tool-/, '');
-                                    return (
-                                      <div key={`tool-${name}-${index}`} className="mt-2 p-3 rounded-lg bg-background/50 border border-default-200/50 text-sm w-full">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <Wrench className="w-4 h-4" />
-                                          <span className="font-semibold opacity-80">{name}</span>
-                                          <Chip size="sm" variant="flat" color="primary" className="h-5 text-xs">Running</Chip>
-                                        </div>
-                                        {part.args && (
-                                          <pre className="text-xs bg-default-100 rounded-md p-2 overflow-auto">{JSON.stringify(part.args, null, 2)}</pre>
-                                        )}
-                                        {part.output && (
-                                          <pre className="text-xs bg-default-100 rounded-md p-2 overflow-auto mt-2">{JSON.stringify(part.output, null, 2)}</pre>
-                                        )}
-                                      </div>
-                                    );
-                                  }
-                                  if (part.type.startsWith('step-')) {
-                                    const step = part.type.replace(/^step-/, '');
-                                    return (<div key={`step-${step}-${index}`}></div>
-                                      // <div key={`step-${step}-${index}`} className="mt-2 p-2 rounded-lg bg-default-50 border border-default-200 text-xs w-full">
-                                      //   <div className="flex items-center gap-2">
-                                      //     <span>🧩</span>
-                                      //     <span>Step: {step}</span>
-                                      //   </div>
-                                      //   {part.text && <div className="mt-1 opacity-80">{part.text}</div>}
-                                      // </div>
-                                    );
-                                  }
-                                }
-                                console.warn('Unknown message part type:', part.type);
-                                return null;
-                            }
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+                {messagesWithTimestamps.map((item: any, index: number) => (
+                  <MessageItem
+                    key={item.type === 'timestamp' ? `timestamp-${item.timestamp}` : (item.id || `message-${index}`)}
+                    message={item}
+                    status={status}
+                    index={index}
+                  />
+                ))}
 
               </div>
               {status === "streaming" && (

@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"next dev\" \"pnpm run electron:dev\"",
+    "dev": "concurrently -k \"next dev --port 2342\" \"pnpm run electron:dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint --fix",
-    "electron:dev": "wait-on tcp:3000 && cross-env NODE_ENV=development electron electron/main.ts"
+    "electron:dev": "wait-on tcp:2342 && cross-env NODE_ENV=development electron electron/main.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.28",

@@ -110,7 +110,7 @@ CHAT_MODEL_NAME="gpt-4o" # 指定使用的模型名称，例如 gpt-4o, Kimi-K2.
 pnpm dev
 ```
 
-访问 [http://localhost:3000](http://localhost:3000) 查看应用。
+访问 [http://localhost:2342](http://localhost:2342) 查看应用。
 
 或者同时启动 Electron 开发环境（如果有 Electron 需求）：
 

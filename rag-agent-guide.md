@@ -457,7 +457,7 @@ Run the following command to start the Next.js dev server:
 
 <Snippet text="pnpm run dev" />
 
-Head to [http://localhost:3000](http://localhost:3000/). You should see an empty screen with an input bar floating at the bottom. Try to send a message. The message shows up in the UI for a fraction of a second and then disappears. This is because you haven’t set up the corresponding API route to call the model! By default, `useChat` will send a POST request to the `/api/chat` endpoint with the `messages` as the request body.
+Head to [http://localhost:2342](http://localhost:2342/). You should see an empty screen with an input bar floating at the bottom. Try to send a message. The message shows up in the UI for a fraction of a second and then disappears. This is because you haven’t set up the corresponding API route to call the model! By default, `useChat` will send a POST request to the `/api/chat` endpoint with the `messages` as the request body.
 
 <Note>You can customize the endpoint in the useChat configuration object</Note>
 
