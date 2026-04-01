@@ -9,21 +9,42 @@ import { generateEmbedding, ensurePreTodayVectorized, getCachedEmbeddingsForFile
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, "..");
 
-// Load environment variables from the root .env file
-dotenv.config({ path: path.join(__dirname, ".env") });
+// Load environment variables from the project root first, with cwd as a fallback.
+const envCandidates = [
+    path.join(projectRoot, ".env"),
+    path.join(process.cwd(), ".env"),
+];
 
-const MEMORIES_DIR = path.join(__dirname, "../data/memories");
-const LAST_RUN_FILE = path.join(__dirname, "../data/memories/.memory-consolidation-last-run");
-const MEMORY_CLUSTERS_FILE = path.join(__dirname, "../data/memories/.memory-clusters.json");
+for (const envPath of envCandidates) {
+    if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+        break;
+    }
+}
+
+const MEMORIES_DIR = path.join(projectRoot, "data/memories");
+const LAST_RUN_FILE = path.join(projectRoot, "data/memories/.memory-consolidation-last-run");
+const MEMORY_CLUSTERS_FILE = path.join(projectRoot, "data/memories/.memory-clusters.json");
+
+const modelName = process.env.CHAT_MODEL_NAME || "gpt-3.5-turbo";
+const apiBase = process.env.MODEL_API_BASE || "https://api.openai.com/v1";
+const apiKey = process.env.MODEL_API_KEY || process.env.OPENAI_API_KEY;
+
+if (!apiKey) {
+    console.warn(
+        `[Memory Manager] Missing MODEL_API_KEY/OPENAI_API_KEY. Checked env files: ${envCandidates.join(", ")}`
+    );
+}
 
 // Initialize AI Model
 // Using the same configuration as in app/api/chat/route.ts
 const model = createOpenAICompatible({
-    name: process.env.CHAT_MODEL_NAME || "",
-    baseURL: process.env.MODEL_API_BASE || "https://api.openai.com/v1",
-    apiKey: process.env.MODEL_API_KEY,
-})(process.env.CHAT_MODEL_NAME || "");
+    name: modelName,
+    baseURL: apiBase,
+    apiKey,
+})(modelName);
 
 interface MemoryEmbedding {
     content: string;
