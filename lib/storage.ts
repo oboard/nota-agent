@@ -50,6 +50,15 @@ export interface LinkMetadata {
     createdAt: Date;
 }
 
+export interface NoteData {
+    id: string;
+    title: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    fileName: string;
+}
+
 export class FileStorage {
     private dataDir: string;
 
@@ -76,7 +85,42 @@ export class FileStorage {
         return path.join(this.dataDir, fileName);
     }
 
+    private async ensureDir(dirPath: string = this.dataDir): Promise<void> {
+        await fs.mkdir(dirPath, { recursive: true });
+    }
+
+    private getNotesDir(): string {
+        return path.join(this.dataDir, 'notes');
+    }
+
+    private getNoteFilePath(id: string): string {
+        return path.join(this.getNotesDir(), `${id}.txt`);
+    }
+
+    private normalizeNoteText(title?: string, content?: string): string {
+        const safeTitle = (title || '').replace(/\r/g, '').trim() || '未命名便笺';
+        const safeContent = (content || '').replace(/\r/g, '');
+        return `${safeTitle}\n\n${safeContent}`.trimEnd();
+    }
+
+    private parseNoteFile(id: string, fileName: string, raw: string, createdAt: string, updatedAt: string): NoteData {
+        const normalized = raw.replace(/\r/g, '');
+        const [rawTitle = '', ...rest] = normalized.split('\n');
+        const title = rawTitle.trim() || '未命名便笺';
+        const content = rest.join('\n').replace(/^\n+/, '');
+
+        return {
+            id,
+            title,
+            content,
+            createdAt,
+            updatedAt,
+            fileName,
+        };
+    }
+
     async addMemory(content: string, type: string = "memory"): Promise<void> {
+        await this.ensureDir();
         const fileName = this.getTodayFileName();
         const filePath = this.getFilePath(fileName);
 
@@ -94,6 +138,7 @@ export class FileStorage {
     }
 
     async addLongTermMemory(content: string): Promise<void> {
+        await this.ensureDir();
         const fileName = 'long-term.md';
         const filePath = this.getFilePath(fileName);
 
@@ -517,8 +562,112 @@ export class FileStorage {
 
     async saveTodos(todos: TodoData[]): Promise<void> {
         const filePath = path.join(this.dataDir, 'todos.json');
+        await this.ensureDir();
         // 将 Date 对象转换为 ISO 字符串以便 JSON 序列化
         await fs.writeFile(filePath, JSON.stringify(todos, null, 2));
+    }
+
+    async getNotes(): Promise<NoteData[]> {
+        const notesDir = this.getNotesDir();
+        await this.ensureDir(notesDir);
+
+        try {
+            const files = await fs.readdir(notesDir);
+            const noteFiles = files.filter(file => file.endsWith('.txt'));
+
+            const notes = await Promise.all(
+                noteFiles.map(async (fileName) => {
+                    const id = fileName.replace(/\.txt$/, '');
+                    const filePath = path.join(notesDir, fileName);
+                    const [raw, stat] = await Promise.all([
+                        fs.readFile(filePath, 'utf-8'),
+                        fs.stat(filePath),
+                    ]);
+
+                    return this.parseNoteFile(
+                        id,
+                        fileName,
+                        raw,
+                        stat.birthtime.toISOString(),
+                        stat.mtime.toISOString(),
+                    );
+                })
+            );
+
+            return notes.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        } catch (error) {
+            console.error('Error reading notes:', error);
+            return [];
+        }
+    }
+
+    async getNote(id: string): Promise<NoteData | null> {
+        const filePath = this.getNoteFilePath(id);
+
+        try {
+            const [raw, stat] = await Promise.all([
+                fs.readFile(filePath, 'utf-8'),
+                fs.stat(filePath),
+            ]);
+
+            return this.parseNoteFile(
+                id,
+                `${id}.txt`,
+                raw,
+                stat.birthtime.toISOString(),
+                stat.mtime.toISOString(),
+            );
+        } catch (error: any) {
+            if (error?.code !== 'ENOENT') {
+                console.error(`Error reading note ${id}:`, error);
+            }
+            return null;
+        }
+    }
+
+    async createNote(data?: { title?: string; content?: string }): Promise<NoteData> {
+        const noteId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        const filePath = this.getNoteFilePath(noteId);
+        await this.ensureDir(this.getNotesDir());
+
+        const noteText = this.normalizeNoteText(data?.title, data?.content);
+        await fs.writeFile(filePath, noteText, 'utf-8');
+
+        const note = await this.getNote(noteId);
+        if (!note) {
+            throw new Error('Failed to create note');
+        }
+
+        return note;
+    }
+
+    async updateNote(id: string, data: { title?: string; content?: string }): Promise<NoteData | null> {
+        const existing = await this.getNote(id);
+        if (!existing) {
+            return null;
+        }
+
+        const filePath = this.getNoteFilePath(id);
+        const noteText = this.normalizeNoteText(
+            data.title ?? existing.title,
+            data.content ?? existing.content,
+        );
+
+        await fs.writeFile(filePath, noteText, 'utf-8');
+        return this.getNote(id);
+    }
+
+    async deleteNote(id: string): Promise<boolean> {
+        const filePath = this.getNoteFilePath(id);
+        try {
+            await fs.unlink(filePath);
+            return true;
+        } catch (error: any) {
+            if (error?.code !== 'ENOENT') {
+                console.error(`Error deleting note ${id}:`, error);
+            }
+            return false;
+        }
     }
 
     async saveLinkMetadata(metadata: Omit<LinkMetadata, 'id' | 'createdAt'>): Promise<LinkMetadata> {
@@ -587,6 +736,7 @@ export class FileStorage {
 
     async saveLinkMetadataList(links: LinkMetadata[]): Promise<void> {
         const filePath = path.join(this.dataDir, 'links.json');
+        await this.ensureDir();
         // 将 Date 对象转换为 ISO 字符串以便 JSON 序列化
         await fs.writeFile(filePath, JSON.stringify(links, null, 2));
     }

@@ -18,12 +18,17 @@ import { cjk } from '@streamdown/cjk';
 import 'katex/dist/katex.min.css';
 import { saveChat, loadMoreMessages, scrollToDate } from '@/app/actions';
 import { addTimestampSeparators } from '@/lib/chat-utils';
+import { getAlwaysOnTop, isElectronRuntime, openNotesBoardWindow, toggleAlwaysOnTop } from '@/lib/electron-window';
+import { announceNotesChanged, buildInternalNoteUrl } from "@/lib/note-window";
 import { DatePanel } from '@/components/date-panel';
 import { TaskPanel } from "./task-panel";
 import { MessageItem } from "./message-item";
-import { ChevronLeft, ListTodo, ImageIcon, Save, ArrowUp, Sparkles, PanelLeft, PanelRight } from 'lucide-react';
+import { ChevronLeft, ListTodo, ImageIcon, Save, ArrowUp, Sparkles, PanelLeft, PanelRight, Pin, PinOff, StickyNote } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
+
+const dragRegionStyle = { WebkitAppRegion: 'drag' } as React.CSSProperties;
+const noDragRegionStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
 interface Memory {
   id: string;
@@ -56,7 +61,10 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   const { isTodoPanelExpanded, toggleTodoPanel, setExpanded: setTodoPanelExpanded } = useTodoPanelStore();
   const [isMobile, setIsMobile] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [isElectron, setIsElectron] = useState(false);
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const titlebarInsetClass = isElectron ? "pl-20 pr-3 lg:pl-24 lg:pr-3" : "px-2.5 lg:px-3";
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1024px)');
@@ -85,6 +93,15 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     };
   }, []);
 
+  useEffect(() => {
+    const inElectron = isElectronRuntime()
+    setIsElectron(inElectron)
+
+    if (!inElectron) return
+
+    getAlwaysOnTop().then(setIsAlwaysOnTop).catch(() => setIsAlwaysOnTop(false))
+  }, []);
+
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
@@ -99,8 +116,15 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
         case 'updateTodo':
         case 'deleteTodo':
         case 'saveMemory':
-          // 当创建、完成、更新或删除 todo 时，触发刷新以更新 todo 列表
-          refreshData();
+          break;
+        case 'createNote':
+          announceNotesChanged('created');
+          break;
+        case 'updateNote':
+          announceNotesChanged('updated');
+          break;
+        case 'deleteNote':
+          announceNotesChanged('deleted');
           break;
       }
     },
@@ -274,6 +298,21 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     setInput('');
   }, [input]);
 
+  const handleToggleAlwaysOnTop = useCallback(async () => {
+    const next = await toggleAlwaysOnTop()
+    setIsAlwaysOnTop(next)
+  }, []);
+
+  const handleOpenNotesBoard = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (isElectronRuntime()) {
+      openNotesBoardWindow();
+      return;
+    }
+
+    window.open(buildInternalNoteUrl("/notes"), "_blank", "popup=yes,width=980,height=760");
+  }, []);
+
   // 处理图片上传和 OCR 识别
   const handleImageUpload = useCallback(() => {
     fileInputRef.current?.click();
@@ -404,7 +443,10 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
 
-      <div className="relative z-20 flex items-center justify-between border-b border-default-200/60 bg-background/90 px-2.5 py-1.5 backdrop-blur-xl lg:px-3">
+      <div
+        className={`relative z-20 flex items-center justify-between border-b border-default-200/60 bg-background/90 py-1.5 backdrop-blur-xl ${titlebarInsetClass}`}
+        style={isElectron ? dragRegionStyle : undefined}
+      >
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
             <Sparkles className="h-3.5 w-3.5" />
@@ -422,7 +464,32 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
           </div>
         </div>
 
-        <div className="pointer-events-auto flex items-center gap-1">
+        <div
+          className="pointer-events-auto flex items-center gap-1"
+          style={isElectron ? noDragRegionStyle : undefined}
+        >
+          {isElectron && (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="flat"
+              onPress={handleToggleAlwaysOnTop}
+              className={`h-7 min-h-7 w-7 min-w-7 border border-default-200/70 transition-colors ${isAlwaysOnTop ? 'bg-primary/10 text-primary' : 'bg-transparent text-default-400 hover:bg-default-100'}`}
+              title={isAlwaysOnTop ? "取消置顶" : "置顶窗口"}
+            >
+              {isAlwaysOnTop ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+            </Button>
+          )}
+          <Button
+            isIconOnly
+            size="sm"
+            variant="flat"
+            onPress={handleOpenNotesBoard}
+            className="h-7 min-h-7 w-7 min-w-7 border border-default-200/70 bg-transparent text-default-400 transition-colors hover:bg-default-100"
+            title="便笺"
+          >
+            <StickyNote className="h-4 w-4" />
+          </Button>
           <Button
             isIconOnly
             size="sm"

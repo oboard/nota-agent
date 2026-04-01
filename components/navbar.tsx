@@ -20,6 +20,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 import { siteConfig } from "@/config/site";
+import { getAlwaysOnTop, isElectronRuntime, toggleAlwaysOnTop } from "@/lib/electron-window";
 import { ThemeSwitch } from "@/components/theme-switch";
 import {
   GithubIcon,
@@ -27,8 +28,11 @@ import {
   Logo,
 } from "@/components/icons";
 import { getAvailableDates } from "@/app/actions";
-import { Calendar, Settings } from "lucide-react";
+import { Calendar, Pin, PinOff } from "lucide-react";
 import { useDatePanelStore } from "@/lib/stores/date-panel-store";
+
+const dragRegionStyle = { WebkitAppRegion: 'drag' } as React.CSSProperties;
+const noDragRegionStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
 interface DateItem {
   date: string;
@@ -50,7 +54,10 @@ export const Navbar = () => {
   const [availableDates, setAvailableDates] = useState<DateItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isLoadingDates, setIsLoadingDates] = useState(false);
+  const [isElectron, setIsElectron] = useState(false);
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   const { isDatePanelExpanded, toggleDatePanel } = useDatePanelStore();
+  const titlebarInsetClass = isElectron ? "pl-20 pr-3 lg:pl-24 lg:pr-3" : "";
 
   // 获取可用日期
   useEffect(() => {
@@ -68,6 +75,20 @@ export const Navbar = () => {
 
     fetchDates();
   }, []);
+
+  useEffect(() => {
+    const inElectron = isElectronRuntime();
+    setIsElectron(inElectron);
+
+    if (!inElectron) return;
+
+    getAlwaysOnTop().then(setIsAlwaysOnTop).catch(() => setIsAlwaysOnTop(false));
+  }, []);
+
+  const handleToggleAlwaysOnTop = async () => {
+    const next = await toggleAlwaysOnTop();
+    setIsAlwaysOnTop(next);
+  };
 
   // 格式化日期显示
   const formatDateDisplay = (dateStr: string) => {
@@ -122,10 +143,15 @@ export const Navbar = () => {
 
 
   return (
-    <HeroUINavbar maxWidth="xl" position="sticky" className="border-b border-default-200">
+    <HeroUINavbar
+      maxWidth="xl"
+      position="sticky"
+      className={`border-b border-default-200 ${titlebarInsetClass}`}
+      style={isElectron ? dragRegionStyle : undefined}
+    >
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
         <NavbarBrand as="li" className="gap-3 max-w-fit">
-          <NextLink className="flex justify-start items-center gap-1" href="/">
+          <NextLink className="flex justify-start items-center gap-1" href="/chat">
             <Logo />
             <p className="font-bold text-inherit">Nota Agent</p>
           </NextLink>
@@ -203,16 +229,25 @@ export const Navbar = () => {
         className="hidden sm:flex basis-1/5 sm:basis-full"
         justify="end"
       >
-        <NavbarItem className="hidden sm:flex gap-2">
+        <NavbarItem className="hidden sm:flex gap-2" style={isElectron ? noDragRegionStyle : undefined}>
+          {isElectron && (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              onPress={handleToggleAlwaysOnTop}
+              className="min-w-0"
+              title={isAlwaysOnTop ? "取消置顶" : "置顶窗口"}
+            >
+              {isAlwaysOnTop ? <PinOff className="w-4 h-4 text-primary" /> : <Pin className="w-4 h-4 text-default-500" />}
+            </Button>
+          )}
           {/* <Link isExternal aria-label="Twitter" href={siteConfig.links.twitter}>
             <TwitterIcon className="text-default-500" />
           </Link>
           <Link isExternal aria-label="Discord" href={siteConfig.links.discord}>
             <DiscordIcon className="text-default-500" />
           </Link> */}
-          <NextLink href="/settings" aria-label="Settings">
-            <Settings className="text-default-500 hover:text-primary transition-colors" />
-          </NextLink>
           <Link isExternal aria-label="Github" href={siteConfig.links.github}>
             <GithubIcon className="text-default-500" />
           </Link>
@@ -222,10 +257,19 @@ export const Navbar = () => {
 
       </NavbarContent>
 
-      <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
-        <NextLink href="/settings" aria-label="Settings">
-          <Settings className="text-default-500 hover:text-primary transition-colors" />
-        </NextLink>
+      <NavbarContent className="sm:hidden basis-1 pl-4" justify="end" style={isElectron ? noDragRegionStyle : undefined}>
+        {isElectron && (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="light"
+            onPress={handleToggleAlwaysOnTop}
+            className="min-w-0"
+            title={isAlwaysOnTop ? "取消置顶" : "置顶窗口"}
+          >
+            {isAlwaysOnTop ? <PinOff className="w-4 h-4 text-primary" /> : <Pin className="w-4 h-4 text-default-500" />}
+          </Button>
+        )}
         <Link isExternal aria-label="Github" href={siteConfig.links.github}>
           <GithubIcon className="text-default-500" />
         </Link>

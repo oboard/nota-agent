@@ -22,5 +22,14 @@ export {
   isLongTermMemoryContent,
 } from "./memory";
 
+// Note 相关工具
+export {
+  listNotesTool,
+  getNoteTool,
+  createNoteTool,
+  updateNoteTool,
+  deleteNoteTool,
+} from "./note";
+
 // Skill 相关工具
 export { loadSkillTool } from "./skill";

@@ -178,6 +178,63 @@ export async function getRecentMemories() {
   return await storage.getRecentMemories(20);
 }
 
+function summarizeNoteForMemory(text: string, limit: number = 120) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return "（空白）";
+  return normalized.length > limit ? `${normalized.slice(0, limit)}...` : normalized;
+}
+
+async function recordNoteMemory(action: "创建" | "更新" | "删除", payload: { title: string; content?: string; id: string }) {
+  const timestamp = new Date().toISOString();
+  const preview = summarizeNoteForMemory(payload.content || "");
+  await addMemory(`用户在 ${timestamp} ${action}了便笺《${payload.title}》(${payload.id})。内容摘要：${preview}`);
+}
+
+// Note Actions
+export async function getNotes() {
+  return await storage.getNotes();
+}
+
+export async function getNote(id: string) {
+  return await storage.getNote(id);
+}
+
+export async function createNote(data?: { title?: string; content?: string }) {
+  const note = await storage.createNote(data);
+  await recordNoteMemory("创建", note);
+  revalidatePath("/");
+  revalidatePath("/chat");
+  revalidatePath(`/notes/${note.id}`);
+  return note;
+}
+
+export async function updateNote(id: string, data: { title?: string; content?: string }) {
+  const note = await storage.updateNote(id, data);
+  if (!note) {
+    throw new Error("便笺不存在");
+  }
+
+  await recordNoteMemory("更新", note);
+  revalidatePath("/");
+  revalidatePath("/chat");
+  revalidatePath(`/notes/${id}`);
+  return note;
+}
+
+export async function deleteNote(id: string) {
+  const existing = await storage.getNote(id);
+  const deleted = await storage.deleteNote(id);
+
+  if (deleted && existing) {
+    await recordNoteMemory("删除", existing);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/chat");
+  revalidatePath(`/notes/${id}`);
+  return deleted;
+}
+
 // Conversation Actions - 不再持久化，返回空数组
 export async function saveConversation(
   message: string,

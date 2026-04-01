@@ -5,10 +5,6 @@ export const siteConfig = {
   description: "Remember and organize your notes.",
   navItems: [
     {
-      label: "Home",
-      href: "/",
-    },
-    {
       label: "Chat",
       href: "/chat",
     },
@@ -22,10 +18,6 @@ export const siteConfig = {
     },
   ],
   navMenuItems: [
-    {
-      label: "Home",
-      href: "/",
-    },
     {
       label: "Chat",
       href: "/chat",

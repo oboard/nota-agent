@@ -1,6 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText, convertToModelMessages, generateText, type UIMessage } from "ai";
-import { addMemory, getRecentMemories, getLongTermMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
+import { addMemory, getNotes, getRecentMemories, getLongTermMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
 import { urlMetadataExtractor } from "@/lib/url-metadata";
 import { skillsManager } from "@/lib/skills-manager";
 import {
@@ -15,6 +15,11 @@ import {
   cleanMemoryContent,
   isValidMemoryContent,
   loadSkillTool,
+  listNotesTool,
+  getNoteTool,
+  createNoteTool,
+  updateNoteTool,
+  deleteNoteTool,
 } from "@/lib/tools";
 
 export const maxDuration = 30;
@@ -30,11 +35,12 @@ export async function POST(req: Request) {
   })(modelName)
 
   // 获取上下文信息和技能
-  const [recentMemories, longTermMemories, currentTodos, availableSkills] = await Promise.all([
+  const [recentMemories, longTermMemories, currentTodos, availableSkills, notes] = await Promise.all([
     getRecentMemories(),
     getLongTermMemories(),
     getTodos(),
     skillsManager.discoverSkills(),
+    getNotes(),
   ]);
 
   const skillsPrompt = skillsManager.buildSkillsPrompt(availableSkills);
@@ -48,6 +54,10 @@ export async function POST(req: Request) {
     ? recentMemories.map(m => `- [${m.createdAt}] ${m.content}`).join("\n")
     : "（暂无近期记忆）";
 
+  const notesText = notes.length > 0
+    ? notes.map(note => `- ${note.id}: ${note.title}（更新于 ${note.updatedAt}）`).join("\n")
+    : "（暂无便笺）";
+
   const systemPrompt = `你是一个智能助手 NotaAgent。
   你的核心目标是帮助用户整理任务和回答问题。
   
@@ -59,6 +69,9 @@ export async function POST(req: Request) {
   
   ## 当前待办事项（ID: 标题）：
   ${currentTodos.map(t => `- ${t.id}: ${t.title}`).join("\n")}
+
+  ## 当前便笺（ID: 标题）：
+  ${notesText}
   
   ${skillsPrompt}
   
@@ -75,8 +88,14 @@ export async function POST(req: Request) {
       - 如果用户要修改任务信息，使用 updateTodo 工具更新
       - 创建任务时，如果用户提供了相关链接（如文档链接、参考链接等），使用 links 参数保存，key 为链接标题，value 为 URL
   3. 始终保持友善、简洁。
-  4. 今天的日期是：${new Date().toLocaleDateString()}。
-  5. 当前UTC时间是：${new Date().toISOString()}（注意：这是UTC时间，比北京时间慢8小时）。
+  4. 智能管理便笺：
+      - 便笺是纯文本，不是 markdown
+      - 当用户要新建、查看、修改、删除便笺时，优先使用便笺工具
+      - 修改前如果不确定便笺 ID，可以先用 listNotes 或 getNote
+      - 更新便笺时尽量保留用户原文风格，不要擅自改写成 markdown
+      - 当你为用户撰写或改写便笺正文时，可以主动加入一些贴切、轻松的 emoji，让便笺更像日常便签；但不要过度堆砌，保持可读性
+  5. 今天的日期是：${new Date().toLocaleDateString()}。
+  6. 当前UTC时间是：${new Date().toISOString()}（注意：这是UTC时间，比北京时间慢8小时）。
   
   重要规则：
   - 当用户说"我完成了"、"做好了"等表达时，智能识别他们指的是哪个任务，并直接使用 completeTodo 工具标记为完成
@@ -99,6 +118,11 @@ export async function POST(req: Request) {
       saveMemory: saveMemoryTool,
       saveLongTermMemory: saveLongTermMemoryTool,
       memoryGrep: memoryGrepTool,
+      listNotes: listNotesTool,
+      getNote: getNoteTool,
+      createNote: createNoteTool,
+      updateNote: updateNoteTool,
+      deleteNote: deleteNoteTool,
     },
     onFinish: async ({ text }) => {
       // 保存对话记录

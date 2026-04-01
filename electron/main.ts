@@ -9,6 +9,24 @@ import * as fs from 'fs'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+const getWindowChromeOptions = () => {
+  if (process.platform === 'darwin') {
+    return {
+      titleBarStyle: 'hiddenInset' as const,
+      trafficLightPosition: { x: 14, y: 16 },
+    }
+  }
+
+  return {
+    titleBarStyle: 'hidden' as const,
+    titleBarOverlay: {
+      color: '#00000000',
+      symbolColor: '#94a3b8',
+      height: 40,
+    },
+  }
+}
+
 const createContextMenu = () => {
   return Menu.buildFromTemplate([
     {
@@ -80,6 +98,9 @@ const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    backgroundColor: '#00000000',
+    autoHideMenuBar: true,
+    ...getWindowChromeOptions(),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -96,6 +117,23 @@ const createWindow = () => {
 
   // 拦截链接点击，使用系统默认浏览器打开
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://localhost') || url.startsWith('file://')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 760,
+          height: 920,
+          backgroundColor: '#00000000',
+          autoHideMenuBar: true,
+          ...getWindowChromeOptions(),
+          webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+          }
+        }
+      }
+    }
+
     // 使用系统默认浏览器打开外部链接
     shell.openExternal(url)
     return { action: 'deny' }
@@ -120,6 +158,67 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 }
+
+const resolveAppUrl = (pathname: string) => {
+  const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`
+
+  if (process.env.NODE_ENV === 'development') {
+    return `http://localhost:2342${normalizedPath}`
+  }
+
+  return `file://${path.join(__dirname, '../dist/index.html')}#${normalizedPath}`
+}
+
+const createChildWindow = (targetUrl: string, options?: Partial<Electron.BrowserWindowConstructorOptions>) => {
+  const childWindow = new BrowserWindow({
+    width: 900,
+    height: 700,
+    backgroundColor: '#00000000',
+    autoHideMenuBar: true,
+    ...getWindowChromeOptions(),
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    },
+    ...options,
+  })
+
+  childWindow.loadURL(targetUrl)
+  return childWindow
+}
+
+ipcMain.handle('window:get-always-on-top', (event) => {
+  return BrowserWindow.fromWebContents(event.sender)?.isAlwaysOnTop() ?? false
+})
+
+ipcMain.handle('window:toggle-always-on-top', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (!win) return false
+
+  const next = !win.isAlwaysOnTop()
+  win.setAlwaysOnTop(next)
+  return next
+})
+
+ipcMain.handle('window:open-notes-board', () => {
+  createChildWindow(resolveAppUrl('/notes'), {
+    width: 980,
+    height: 760,
+  })
+  return true
+})
+
+ipcMain.handle('window:open-note', (event, noteId: string) => {
+  if (!noteId) return false
+
+  createChildWindow(resolveAppUrl(`/notes/${noteId}`), {
+    width: 420,
+    height: 520,
+    minWidth: 360,
+    minHeight: 420,
+  })
+  return true
+})
 
 app.whenReady().then(() => {
   createWindow()
