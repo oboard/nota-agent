@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@heroui/button";
 import { ScrollShadow } from "@heroui/scroll-shadow";
 import { getAvailableDates } from '@/app/actions';
-import { Calendar, ChevronRight, ChevronLeft, Clock, History } from 'lucide-react';
+import { Clock, History } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { DateItemButton } from '@/components/date-item-button';
 
@@ -91,9 +90,9 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
   if (isLoading) {
     return (
       <div className={`${isCollapsed ? 'w-12' : 'w-80'} transition-all duration-300 flex-shrink-0 h-full`}>
-        <div className="h-full bg-default-50 border-r border-default-200 flex flex-col">
+        <div className="h-full border-r border-default-200/70 bg-content1/30 flex flex-col">
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-sm text-default-500">加载中...</div>
+            <div className="text-xs text-default-500">加载中...</div>
           </div>
         </div>
       </div>
@@ -102,18 +101,17 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
 
   return (
     <div className="flex-shrink-0 h-full animate-in slide-in-from-left duration-300">
-      <div className="h-full bg-default-50 border-r border-default-200 flex flex-col">
-        {/* Header - 移除收起按钮，使用统一的悬浮按钮 */}
-        <div className="flex items-center p-4 border-b border-default-200 bg-default-100">
-          <div className="flex items-center gap-3">
-            <History className="w-5 h-5 text-primary" />
-            <h3 className="text-base font-semibold text-foreground">历史记录</h3>
+      <div className="h-full border-r border-default-200/70 bg-content1/25 flex flex-col">
+        <div className="flex items-center px-3 py-2 border-b border-default-200/60 bg-content1/35">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-default-500" />
+            <h3 className="text-[12px] font-medium tracking-[0.14em] text-default-600 uppercase">History</h3>
           </div>
         </div>
 
         {!isCollapsed && (
           <ScrollShadow className="flex-1">
-            <div className="p-3 space-y-1">
+            <div className="p-2 space-y-1">
 
               {availableDates.length > 0 && (
                 <>
@@ -140,8 +138,8 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
                   </div>
 
                   {/* 本周 */}
-                  <div className="pt-3">
-                    <div className="text-xs font-semibold text-default-500 mb-2 px-3 flex items-center gap-2">
+                  <div className="pt-2">
+                    <div className="mb-1.5 flex items-center gap-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-default-400">
                       <Clock className="w-3 h-3" />
                       本周
                     </div>
@@ -174,8 +172,8 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
                   </div>
 
                   {/* 更早 */}
-                  <div className="pt-3">
-                    <div className="text-xs font-semibold text-default-500 mb-2 px-3 flex items-center gap-2">
+                  <div className="pt-2">
+                    <div className="mb-1.5 flex items-center gap-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-default-400">
                       <History className="w-3 h-3" />
                       更早
                     </div>
@@ -205,7 +203,7 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
 
               {availableDates.length === 0 && !isLoading && (
                 <div className="text-center text-default-500 text-sm py-8 px-4">
-                  <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <History className="w-10 h-10 mx-auto mb-2 opacity-40" />
                   <p>暂无聊天记录</p>
                   <p className="text-xs mt-1">开始新的对话吧</p>
                 </div>

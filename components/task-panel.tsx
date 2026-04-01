@@ -2,21 +2,21 @@
 
 import type { ReactNode } from "react";
 import { TodoData, TaskPhase } from "@/lib/storage";
-import { Button } from "@heroui/button";
 import { useTodoPanelStore } from "@/lib/stores/todo-panel-store";
-import { Card, CardHeader, CardBody } from "@heroui/card";
 import { ScrollShadow } from "@heroui/scroll-shadow";
+import { Button } from "@heroui/button";
 import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
 import { toggleTodo, deleteTodo, updateTodo, toggleSuspended } from "@/app/actions";
-import { ChevronLeft, ChevronRight, Link as LinkIcon, X, PartyPopper, CalendarClock, CheckCircle2, Circle, Pause, Play } from "lucide-react";
+import { Link as LinkIcon, X, PartyPopper, CalendarClock, Pause, Play, ListTodo } from "lucide-react";
 
-interface DesktopTodoPanelProps {
+interface TaskPanelProps {
   todos: TodoData[];
   onRefresh: () => void;
+  showCloseButton?: boolean;
 }
 
-export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
+export function TaskPanel({ todos, onRefresh, showCloseButton = true }: TaskPanelProps) {
   const { isTodoPanelExpanded, toggleTodoPanel } = useTodoPanelStore();
 
   const handleToggleTodo = async (id: string, completed: boolean) => {
@@ -70,7 +70,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
             return (
               <div
                 key={phase.id}
-                className={`group/phase relative flex gap-3 items-center`}
+                className={`group/phase relative flex min-w-0 gap-3 items-center`}
               >
                 {/* 状态点 - 使用 Checkbox 或自定义指示器 */}
                 <div className="relative z-10 flex-shrink-0">
@@ -86,23 +86,20 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                   />
                 </div>
 
-                {/* 内容卡片 - 使用 Card */}
-                <Card
-                  shadow="sm"
-                  className={`flex-1 min-w-0 transition-all duration-300 border-1
+                <button
+                  type="button"
+                  className={`flex-1 min-w-0 rounded-lg border px-2.5 py-2 text-left transition-all duration-300
                     ${isCompleted
                       ? "bg-default-50/50 border-default-100 opacity-60 hover:opacity-100"
                       : isActive
-                        ? "bg-content1 border-primary-200 dark:border-primary-800 shadow-md shadow-primary/5"
-                        : "bg-content1 border-default-100 hover:border-default-200"
+                        ? "bg-content1 border-primary-200 dark:border-primary-800"
+                        : "bg-content1/70 border-default-100 hover:border-default-200"
                     }
                   `}
-                  isPressable
-                  onPress={() => handleTogglePhase(todo.id, todo.phases!, phase.id, !isCompleted)}
+                  onClick={() => handleTogglePhase(todo.id, todo.phases!, phase.id, !isCompleted)}
                 >
-                  <CardBody className="p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-[14px] font-medium transition-colors ${isCompleted ? "text-default-500 line-through" :
+                      <span className={`min-w-0 break-words text-[14px] font-medium transition-colors ${isCompleted ? "text-default-500 line-through" :
                         isActive ? "text-primary-600 dark:text-primary-400 font-semibold" : "text-foreground"
                         }`}>
                         {phase.title}
@@ -125,8 +122,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                         </span>
                       </div>
                     )}
-                  </CardBody>
-                </Card>
+                </button>
               </div>
             );
           })}
@@ -149,7 +145,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
       key={todo.id}
       className={itemClassName}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex min-w-0 items-start gap-2">
         <Checkbox
           isSelected={todo.completed}
           onValueChange={(v) => handleToggleTodo(todo.id, v)}
@@ -159,8 +155,8 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
           isDisabled={todo.suspended}
         />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <h4 className={`font-medium text-xs leading-snug ${todo.completed ? "line-through text-default-400" : todo.suspended ? "text-default-400 italic" : "text-foreground"}`}>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <h4 className={`min-w-0 break-words font-medium text-xs leading-snug ${todo.completed ? "line-through text-default-400" : todo.suspended ? "text-default-400 italic" : "text-foreground"}`}>
               {todo.title}
             </h4>
             {todo.suspended && (
@@ -223,7 +219,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
           isIconOnly
           size="sm"
           variant="light"
-          className="opacity-0 group-hover:opacity-100 transition-all duration-300 -mr-1 -mt-1 text-default-300 hover:text-default-500 hover:bg-default-100 hover:scale-110 active:scale-95 h-5 w-5 min-w-5"
+          className="opacity-0 group-hover:opacity-100 transition-all duration-300 -mr-1 -mt-1 text-default-300 hover:text-default-500 hover:bg-default-100 h-5 w-5 min-w-5"
           onPress={() => handleToggleSuspended(todo.id, !todo.suspended)}
           title={todo.suspended ? "恢复任务" : "挂起任务"}
         >
@@ -235,7 +231,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
           isIconOnly
           size="sm"
           variant="light"
-          className="opacity-0 group-hover:opacity-100 transition-all duration-300 -mr-1 -mt-1 text-default-300 hover:text-danger hover:bg-danger-50 hover:scale-110 active:scale-95 h-5 w-5 min-w-5"
+          className="opacity-0 group-hover:opacity-100 transition-all duration-300 -mr-1 -mt-1 text-default-300 hover:text-danger hover:bg-danger-50 h-5 w-5 min-w-5"
           onPress={() => handleDeleteTodo(todo.id)}
         >
           <X className="w-3 h-3" />
@@ -309,50 +305,35 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
 
   return (
     <div
-      className={`relative flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out h-full ${!isTodoPanelExpanded ? "w-0" : "w-80 xl:w-96"}`}
+      className={`relative flex h-full min-h-0 w-full min-w-0 flex-col ${!isTodoPanelExpanded ? "hidden" : ""}`}
     >
-      <div className="absolute -left-3 top-6 z-100">
-        <Button
-          isIconOnly
-          size="sm"
-          variant="faded"
-          radius="full"
-          className="shadow-sm w-8 h-8 min-w-6 bg-background border-default-200 hover:scale-110 transition-transform"
-          onPress={toggleTodoPanel}
-        >
-          {isTodoPanelExpanded ? (
-            <ChevronRight className="w-4 h-4 text-default-500" />
-          ) : (
-            <ChevronLeft className="w-4 h-4 text-default-500" />
-          )}
-        </Button>
-      </div>
-
-      <Card className="h-full w-full overflow-hidden border-none shadow-sm">
-        {!isTodoPanelExpanded ? (
-          <div className="h-full flex flex-col items-center py-4 bg-default-50">
-            <div className="writing-vertical-rl text-default-500 font-bold tracking-widest uppercase transform rotate-180 py-8 select-none">
-              My Tasks
-            </div>
-            <div className="mt-2 flex flex-col gap-3 opacity-50">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              <div className="w-1.5 h-1.5 rounded-full bg-default-400" />
-              <div className="w-1.5 h-1.5 rounded-full bg-default-400" />
-            </div>
-          </div>
-        ) : (
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-content1/25">
+        {!isTodoPanelExpanded ? null : (
           <>
-            <CardHeader className="px-5 py-4 border-b border-default-100 flex justify-between items-center bg-default-50/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between border-b border-default-200/60 bg-content1/35 px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-default-800">待办事项</span>
-                <Chip size="sm" variant="shadow" color="primary">
+                <ListTodo className="h-4 w-4 text-default-500" />
+                <span className="text-[12px] font-medium uppercase tracking-[0.14em] text-default-600">Tasks</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Chip size="sm" variant="flat" color="primary" className="h-5 text-[10px]">
                   {todos.filter((t) => !t.completed && !t.suspended).length}
                 </Chip>
+                {showCloseButton && (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    className="h-6 w-6 min-w-6 text-default-400"
+                    onPress={toggleTodoPanel}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
-            </CardHeader>
-            <CardBody className="p-0 overflow-hidden bg-background/50">
-              <ScrollShadow className="h-full p-2" hideScrollBar>
-                <div className="flex flex-col gap-2 pb-20">
+            </div>
+            <ScrollShadow className="flex-1 min-h-0 px-2 py-2" hideScrollBar>
+              <div className="flex min-w-0 flex-col gap-2 pb-20">
                   {todos.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-default-400">
                       <div className="text-5xl mb-4 grayscale opacity-50">{<PartyPopper className="w-12 h-12" />}</div>
@@ -390,7 +371,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="今日任务"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"
                             todos={todayTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-primary/30 bg-primary/5 transition-all duration-300 hover:shadow-md hover:border-primary/50 hover:scale-[1.02] active:scale-[0.98]"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-primary/30 bg-primary/5 transition-all duration-300 hover:shadow-md hover:border-primary/50"
                             getDateChip={renderTodayChip}
                           />
                         );
@@ -407,7 +388,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="无日期"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-300"
                             todos={noDateTodos}
-                            itemClassName={`group relative p-2.5 rounded-lg border transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] ${"bg-content1 border-default-100 hover:border-default-300"}`}
+                            itemClassName={`group relative min-w-0 p-2.5 rounded-lg border transition-all duration-300 hover:shadow-md ${"bg-content1 border-default-100 hover:border-default-300"}`}
                           />
                         );
                       })()}
@@ -428,7 +409,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="逾期未完成"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-danger animate-pulse"
                             todos={overdueTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-danger/30 bg-danger/5 transition-all duration-300 hover:shadow-md hover:border-danger/50 hover:scale-[1.02] active:scale-[0.98]"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-danger/30 bg-danger/5 transition-all duration-300 hover:shadow-md hover:border-danger/50"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip
@@ -465,7 +446,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="本周"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary"
                             todos={thisWeekTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-primary/20 bg-primary/5 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-primary/20 bg-primary/5 transition-all duration-300 hover:shadow-md"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
@@ -499,7 +480,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="下周"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-secondary"
                             todos={nextWeekTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-secondary/20 bg-secondary/5 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-secondary/20 bg-secondary/5 transition-all duration-300 hover:shadow-md"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" color="secondary" className="h-4 text-[10px] px-1 min-w-0">
@@ -536,7 +517,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="下个月"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-info"
                             todos={nextMonthTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-info/20 bg-info/5 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-info/20 bg-info/5 transition-all duration-300 hover:shadow-md"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
@@ -564,7 +545,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="未来"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400"
                             todos={futureTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-default-200 bg-default-50 transition-all duration-300 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-200 bg-default-50 transition-all duration-300 hover:shadow-md"
                             getDateChip={(todo) => (
                               todo.startDateTime ? (
                                 <Chip size="sm" variant="flat" className="h-4 text-[10px] px-1 bg-default-100 text-default-500 min-w-0">
@@ -586,7 +567,7 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="已挂起"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400 animate-[pulse_3s_ease-in-out_infinite]"
                             todos={suspendedTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-default-200 bg-default-100/50 opacity-70 hover:opacity-100 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-200 bg-default-100/50 opacity-70 hover:opacity-100 transition-all duration-300"
                           />
                         );
                       })()}
@@ -600,18 +581,17 @@ export function DesktopTodoPanel({ todos, onRefresh }: DesktopTodoPanelProps) {
                             title="已完成"
                             indicatorClassName="w-1.5 h-1.5 rounded-full bg-success"
                             todos={completedTodos}
-                            itemClassName="group relative p-2.5 rounded-lg border border-default-100 bg-default-50/50 opacity-60 hover:opacity-100 transition-all duration-200"
+                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-100 bg-default-50/50 opacity-60 hover:opacity-100 transition-all duration-200"
                           />
                         );
                       })()}
                     </>
                   )}
-                </div>
-              </ScrollShadow>
-            </CardBody>
+              </div>
+            </ScrollShadow>
           </>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

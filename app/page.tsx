@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getTodos, getRecentMemories } from "./actions";
-import { DesktopTodoPanel } from "@/components/desktop-todo-panel";
+import { TaskPanel } from "@/components/task-panel";
 import { AccordionTabs } from "@/components/accordion-tabs";
 import { TodoData } from "@/lib/storage";
 import { Card, CardBody, CardHeader } from "@heroui/card";
@@ -40,7 +40,7 @@ export default function Home() {
     <div className="flex flex-col lg:flex-row w-full h-full lg:h-[calc(100vh-4rem)] gap-0 lg:gap-4 md:p-4 bg-background overflow-hidden lg:overflow-visible">
       {/* Desktop layout */}
       <div className="hidden lg:flex w-full h-full gap-4">
-        <DesktopTodoPanel todos={todos} onRefresh={refreshData} />
+        <TaskPanel todos={todos} onRefresh={refreshData} />
         <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
           {/* 主页简介内容 */}
           <Card className="w-full h-full">
