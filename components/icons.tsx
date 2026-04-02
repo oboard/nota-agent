@@ -11,16 +11,28 @@ export const Logo: React.FC<IconSvgProps> = ({
   <svg
     fill="none"
     height={size || height}
-    viewBox="0 0 32 32"
+    viewBox="0 0 64 64"
     width={size || width}
     {...props}
   >
-    <path
-      clipRule="evenodd"
-      d="M17.6482 10.1305L15.8785 7.02583L7.02979 22.5499H10.5278L17.6482 10.1305ZM19.8798 14.0457L18.11 17.1983L19.394 19.4511H16.8453L15.1056 22.5499H24.7272L19.8798 14.0457Z"
-      fill="currentColor"
-      fillRule="evenodd"
-    />
+    <defs>
+      <linearGradient id="nota-bg" x1="10" x2="54" y1="8" y2="56" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#0f172a" />
+        <stop offset="1" stopColor="#1f2937" />
+      </linearGradient>
+      <linearGradient id="nota-accent" x1="18" x2="46" y1="14" y2="50" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#fb7185" />
+        <stop offset="0.55" stopColor="#f97316" />
+        <stop offset="1" stopColor="#facc15" />
+      </linearGradient>
+    </defs>
+    <rect x="6" y="6" width="52" height="52" rx="16" fill="url(#nota-bg)" />
+    <path d="M40 12H50C51.1 12 52 12.9 52 14V24L40 12Z" fill="rgba(255,255,255,0.18)" />
+    <rect x="18" y="16" width="8" height="32" rx="4" fill="url(#nota-accent)" />
+    <path d="M25 20C24.4 18.4 25.6 16.8 27.3 16.8H31.2C32.5 16.8 33.6 17.6 34 18.8L42.3 42.6C42.9 44.2 41.7 45.8 40 45.8H36.1C34.8 45.8 33.7 45 33.3 43.8L25 20Z" fill="url(#nota-accent)" />
+    <rect x="38" y="16" width="8" height="32" rx="4" fill="url(#nota-accent)" />
+    <circle cx="47" cy="19" r="4" fill="#67e8f9" />
+    <circle cx="47" cy="19" r="2" fill="#ecfeff" />
   </svg>
 );
 

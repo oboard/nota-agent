@@ -62,6 +62,40 @@ interface MemoryCluster {
     lastUpdated: string;
 }
 
+interface ClusterSummaryResult {
+    theme: string;
+    summary: string;
+}
+
+function extractJsonObject(text: string): string {
+    const trimmed = text.trim();
+    const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    const unfenced = fenceMatch?.[1]?.trim() ?? trimmed;
+
+    const firstBrace = unfenced.indexOf('{');
+    const lastBrace = unfenced.lastIndexOf('}');
+
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        throw new Error("No JSON object found in cluster summary response");
+    }
+
+    return unfenced.slice(firstBrace, lastBrace + 1);
+}
+
+function parseClusterSummaryResponse(text: string): ClusterSummaryResult {
+    const jsonText = extractJsonObject(text);
+    const parsed = JSON.parse(jsonText) as Partial<ClusterSummaryResult>;
+
+    if (typeof parsed.theme !== "string" || typeof parsed.summary !== "string") {
+        throw new Error("Cluster summary response is missing theme or summary");
+    }
+
+    return {
+        theme: parsed.theme.trim(),
+        summary: parsed.summary.trim(),
+    };
+}
+
 /**
  * 生成文本嵌入向量（简化版本，使用关键词提取）
  */
@@ -177,7 +211,7 @@ ${contents}
             temperature: 0.3,
         });
 
-        const result = JSON.parse(text.trim());
+        const result = parseClusterSummaryResponse(text);
         cluster.theme = result.theme;
         cluster.summary = result.summary;
     } catch (error) {
