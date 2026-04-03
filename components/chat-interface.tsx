@@ -15,7 +15,6 @@ import { code } from '@streamdown/code';
 import { mermaid } from '@streamdown/mermaid';
 import { math } from '@streamdown/math';
 import { cjk } from '@streamdown/cjk';
-import 'katex/dist/katex.min.css';
 import { saveChat, loadMoreMessages, scrollToDate } from '@/app/actions';
 import { addTimestampSeparators } from '@/lib/chat-utils';
 import { getAlwaysOnTop, isElectronRuntime, openNotesBoardWindow, toggleAlwaysOnTop } from '@/lib/electron-window';
@@ -26,6 +25,7 @@ import { MessageItem } from "./message-item";
 import { ChevronLeft, ListTodo, ImageIcon, Save, ArrowUp, Sparkles, PanelLeft, PanelRight, Pin, PinOff, StickyNote } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
+import 'katex/dist/katex.min.css';
 
 const dragRegionStyle = { WebkitAppRegion: 'drag' } as React.CSSProperties;
 const noDragRegionStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
@@ -57,7 +57,8 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [historyMessages, setHistoryMessages] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const { isDatePanelExpanded, toggleDatePanel } = useDatePanelStore();
+  const [todos, setTodos] = useState<any[]>([]);
+  const { isDatePanelExpanded, toggleDatePanel, setExpanded: setDatePanelExpanded } = useDatePanelStore();
   const { isTodoPanelExpanded, toggleTodoPanel, setExpanded: setTodoPanelExpanded } = useTodoPanelStore();
   const [isMobile, setIsMobile] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
@@ -102,6 +103,10 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     getAlwaysOnTop().then(setIsAlwaysOnTop).catch(() => setIsAlwaysOnTop(false))
   }, []);
 
+  const refreshData = useCallback(async () => {
+    setTodos(await getTodos());
+  }, []);
+
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
@@ -115,6 +120,8 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
         case 'completeTodo':
         case 'updateTodo':
         case 'deleteTodo':
+          await refreshData();
+          break;
         case 'saveMemory':
           break;
         case 'createNote':
@@ -275,11 +282,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
       loadMoreHistoryMessages();
     }
   };
-  const [todos, setTodos] = useState<any[]>([]);
-
-  const refreshData = async () => {
-    setTodos(await getTodos(),);
-  };
 
   useEffect(() => {
     refreshData();
@@ -364,6 +366,10 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   const handleDateSelect = async (date: string) => {
     setSelectedDate(date);
 
+    if (isMobile) {
+      setDatePanelExpanded(false);
+    }
+
     try {
       const result = await scrollToDate(date);
       if (result.messages.length > 0) {
@@ -444,7 +450,7 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
 
       <div
-        className={`relative z-20 flex items-center justify-between border-b border-default-200/60 bg-background/90 py-1.5 backdrop-blur-xl ${titlebarInsetClass}`}
+        className={`relative z-20 flex h-11 items-center justify-between border-b border-default-200/60 bg-background/90 backdrop-blur-xl ${titlebarInsetClass}`}
         style={isElectron ? dragRegionStyle : undefined}
       >
         <div className="flex items-center gap-2">

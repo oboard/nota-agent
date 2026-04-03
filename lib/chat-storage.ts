@@ -23,6 +23,71 @@ export class ChatStorage {
     return path.join(this.dataDir, fileName);
   }
 
+  private getToolPartName(part: any): string {
+    if (typeof part?.toolName === 'string' && part.toolName) return part.toolName;
+    if (typeof part?.type === 'string' && part.type.startsWith('tool-')) {
+      return part.type.replace(/^tool-/, '');
+    }
+    return '';
+  }
+
+  private buildPartFingerprint(part: any): string {
+    const partType = typeof part?.type === 'string' ? part.type : '';
+
+    if (partType === 'step-start') {
+      return 'step-start';
+    }
+
+    if (partType.startsWith('tool-') || partType === 'tool-call' || partType === 'tool-result' || partType === 'tool-error') {
+      const toolName = this.getToolPartName(part);
+      const input = JSON.stringify(part?.input ?? part?.args ?? {});
+      const output = typeof part?.output === 'string' ? part.output.trim() : JSON.stringify(part?.output ?? '');
+
+      // saveMemory 本身已经会自动升级为长期记忆，这里按“记忆内容”去重，避免同条消息里重复持久化
+      if (toolName === 'saveMemory' || toolName === 'saveLongTermMemory' || toolName === 'autoSaveMemory') {
+        const memoryContent =
+          typeof part?.input?.content === 'string'
+            ? part.input.content.trim()
+            : typeof part?.args?.content === 'string'
+              ? part.args.content.trim()
+              : output;
+        return `memory-save:${memoryContent}`;
+      }
+
+      return `tool:${toolName}:${input}:${output}`;
+    }
+
+    if (partType === 'text') {
+      return `text:${typeof part?.text === 'string' ? part.text : ''}`;
+    }
+
+    return JSON.stringify(part);
+  }
+
+  private sanitizeParts(parts: any[] = []): any[] {
+    const seen = new Set<string>();
+    const sanitized: any[] = [];
+
+    for (const part of parts) {
+      if (!part || typeof part !== 'object') continue;
+
+      // step-start 仅用于过程展示，持久化时没有必要反复保留
+      if (part.type === 'step-start') {
+        continue;
+      }
+
+      const fingerprint = this.buildPartFingerprint(part);
+      if (seen.has(fingerprint)) {
+        continue;
+      }
+
+      seen.add(fingerprint);
+      sanitized.push(part);
+    }
+
+    return sanitized;
+  }
+
   /**
    * 将任意消息标准化为 UIMessage 结构
    */
@@ -41,7 +106,7 @@ export class ChatStorage {
       ...message,
       id,
       createdAt,
-      parts,
+      parts: this.sanitizeParts(parts),
     };
   }
 

@@ -6,6 +6,7 @@ import { getAvailableDates } from '@/app/actions';
 import { Clock, History } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { DateItemButton } from '@/components/date-item-button';
+import { isElectronRuntime } from "@/lib/electron-window";
 
 interface DatePanelProps {
   onDateSelect: (date: string) => void;
@@ -22,6 +23,7 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
   const [availableDates, setAvailableDates] = useState<DateItem[]>([]);
   const { isDatePanelExpanded: isExpanded } = useDatePanelStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [isElectron, setIsElectron] = useState(false);
 
   // 使用store中的展开状态
   const isCollapsed = !isExpanded;
@@ -40,6 +42,10 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
     };
 
     fetchDates();
+  }, []);
+
+  useEffect(() => {
+    setIsElectron(isElectronRuntime());
   }, []);
 
   // 格式化日期显示
@@ -86,7 +92,6 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
     return `${Math.floor(diffDays / 30)}个月前`;
   };
 
-
   if (isLoading) {
     return (
       <div className={`${isCollapsed ? 'w-12' : 'w-80'} transition-all duration-300 flex-shrink-0 h-full`}>
@@ -102,7 +107,9 @@ export function DatePanel({ onDateSelect, selectedDate }: DatePanelProps) {
   return (
     <div className="flex-shrink-0 h-full animate-in slide-in-from-left duration-300">
       <div className="h-full border-r border-default-200/70 bg-content1/25 flex flex-col">
-        <div className="flex items-center px-3 py-2 border-b border-default-200/60 bg-content1/35">
+        <div
+          className={`flex h-11 items-center border-b border-default-200/60 bg-content1/35 ${isElectron ? "pl-20 pr-3 lg:pl-24 lg:pr-3" : "px-5"}`}
+        >
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-default-500" />
             <h3 className="text-[12px] font-medium tracking-[0.14em] text-default-600 uppercase">History</h3>

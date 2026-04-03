@@ -9,6 +9,8 @@ import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
 import { toggleTodo, deleteTodo, updateTodo, toggleSuspended } from "@/app/actions";
 import { Link as LinkIcon, X, PartyPopper, CalendarClock, Pause, Play, ListTodo } from "lucide-react";
+import { isElectronRuntime } from "@/lib/electron-window";
+import React from "react";
 
 interface TaskPanelProps {
   todos: TodoData[];
@@ -18,6 +20,11 @@ interface TaskPanelProps {
 
 export function TaskPanel({ todos, onRefresh, showCloseButton = true }: TaskPanelProps) {
   const { isTodoPanelExpanded, toggleTodoPanel } = useTodoPanelStore();
+  const [isElectron, setIsElectron] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsElectron(isElectronRuntime());
+  }, []);
 
   const handleToggleTodo = async (id: string, completed: boolean) => {
     await toggleTodo(id, completed);
@@ -98,30 +105,30 @@ export function TaskPanel({ todos, onRefresh, showCloseButton = true }: TaskPane
                   `}
                   onClick={() => handleTogglePhase(todo.id, todo.phases!, phase.id, !isCompleted)}
                 >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`min-w-0 break-words text-[14px] font-medium transition-colors ${isCompleted ? "text-default-500 line-through" :
-                        isActive ? "text-primary-600 dark:text-primary-400 font-semibold" : "text-foreground"
-                        }`}>
-                        {phase.title}
-                      </span>
-                      {isActive && !isCompleted && (
-                        <Chip size="sm" color="primary" variant="flat" className="h-5 px-2 text-[10px] font-bold">
-                          进行中
-                        </Chip>
-                      )}
-                    </div>
-
-                    {(phase.startDateTime || phase.endDateTime) && (
-                      <div className={`flex items-center gap-1.5 mt-1.5 text-[11px] font-medium ${isActive ? "text-primary-500/80" : "text-default-400"
-                        }`}>
-                        <CalendarClock className="w-3.5 h-3.5 opacity-70" />
-                        <span>
-                          {phase.startDateTime && new Date(phase.startDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-                          {phase.startDateTime && phase.endDateTime && " - "}
-                          {phase.endDateTime && new Date(phase.endDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`min-w-0 break-words text-[14px] font-medium transition-colors ${isCompleted ? "text-default-500 line-through" :
+                      isActive ? "text-primary-600 dark:text-primary-400 font-semibold" : "text-foreground"
+                      }`}>
+                      {phase.title}
+                    </span>
+                    {isActive && !isCompleted && (
+                      <Chip size="sm" color="primary" variant="flat" className="h-5 px-2 text-[10px] font-bold">
+                        进行中
+                      </Chip>
                     )}
+                  </div>
+
+                  {(phase.startDateTime || phase.endDateTime) && (
+                    <div className={`flex items-center gap-1.5 mt-1.5 text-[11px] font-medium ${isActive ? "text-primary-500/80" : "text-default-400"
+                      }`}>
+                      <CalendarClock className="w-3.5 h-3.5 opacity-70" />
+                      <span>
+                        {phase.startDateTime && new Date(phase.startDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                        {phase.startDateTime && phase.endDateTime && " - "}
+                        {phase.endDateTime && new Date(phase.endDateTime).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
                 </button>
               </div>
             );
@@ -310,7 +317,9 @@ export function TaskPanel({ todos, onRefresh, showCloseButton = true }: TaskPane
       <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-content1/25">
         {!isTodoPanelExpanded ? null : (
           <>
-            <div className="flex items-center justify-between border-b border-default-200/60 bg-content1/35 px-3 py-2">
+            <div
+              className={`flex h-11 items-center justify-between border-b border-default-200/60 bg-content1/35 ${isElectron ? "pl-20 pr-3 lg:pl-24 lg:pr-3" : "px-5"}`}
+            >
               <div className="flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-default-500" />
                 <span className="text-[12px] font-medium uppercase tracking-[0.14em] text-default-600">Tasks</span>
@@ -334,259 +343,259 @@ export function TaskPanel({ todos, onRefresh, showCloseButton = true }: TaskPane
             </div>
             <ScrollShadow className="flex-1 min-h-0 px-2 py-2" hideScrollBar>
               <div className="flex min-w-0 flex-col gap-2 pb-20">
-                  {todos.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-default-400">
-                      <div className="text-5xl mb-4 grayscale opacity-50">{<PartyPopper className="w-12 h-12" />}</div>
-                      <p className="text-lg font-medium text-default-600">全部完成！</p>
-                      <p className="text-xs mt-1 text-default-400">暂无待办事项</p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* 今日任务 (开始时间或结束时间在今天，或时间范围跨越今天) */}
-                      {(() => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const todayEnd = new Date(today);
-                        todayEnd.setHours(23, 59, 59, 999);
+                {todos.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-default-400">
+                    <div className="text-5xl mb-4 grayscale opacity-50">{<PartyPopper className="w-12 h-12" />}</div>
+                    <p className="text-lg font-medium text-default-600">全部完成！</p>
+                    <p className="text-xs mt-1 text-default-400">暂无待办事项</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 今日任务 (开始时间或结束时间在今天，或时间范围跨越今天) */}
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const todayEnd = new Date(today);
+                      todayEnd.setHours(23, 59, 59, 999);
 
-                        const todayTodos = todos.filter((todo) => {
-                          if (todo.completed) return false;
-                          if (todo.suspended) return false;
-                          if (!todo.startDateTime) return false;
+                      const todayTodos = todos.filter((todo) => {
+                        if (todo.completed) return false;
+                        if (todo.suspended) return false;
+                        if (!todo.startDateTime) return false;
 
-                          const startTime = new Date(todo.startDateTime);
-                          const endTime = todo.endDateTime
-                            ? new Date(todo.endDateTime)
-                            : startTime;
-
-                          return (
-                            (startTime >= today && startTime <= todayEnd) ||
-                            (endTime >= today && endTime <= todayEnd) ||
-                            (startTime < today && endTime > todayEnd)
-                          );
-                        });
+                        const startTime = new Date(todo.startDateTime);
+                        const endTime = todo.endDateTime
+                          ? new Date(todo.endDateTime)
+                          : startTime;
 
                         return (
-                          <SectionBlock
-                            title="今日任务"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"
-                            todos={todayTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-primary/30 bg-primary/5 transition-all duration-300 hover:shadow-md hover:border-primary/50"
-                            getDateChip={renderTodayChip}
-                          />
+                          (startTime >= today && startTime <= todayEnd) ||
+                          (endTime >= today && endTime <= todayEnd) ||
+                          (startTime < today && endTime > todayEnd)
                         );
-                      })()}
+                      });
 
-                      {/* 无日期 */}
-                      {(() => {
-                        const noDateTodos = todos.filter(
-                          (todo) => !todo.completed && !todo.suspended && !todo.startDateTime
-                        );
+                      return (
+                        <SectionBlock
+                          title="今日任务"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"
+                          todos={todayTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-primary/30 bg-primary/5 transition-all duration-300 hover:shadow-md hover:border-primary/50"
+                          getDateChip={renderTodayChip}
+                        />
+                      );
+                    })()}
 
-                        return (
-                          <SectionBlock
-                            title="无日期"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-300"
-                            todos={noDateTodos}
-                            itemClassName={`group relative min-w-0 p-2.5 rounded-lg border transition-all duration-300 hover:shadow-md ${"bg-content1 border-default-100 hover:border-default-300"}`}
-                          />
-                        );
-                      })()}
+                    {/* 无日期 */}
+                    {(() => {
+                      const noDateTodos = todos.filter(
+                        (todo) => !todo.completed && !todo.suspended && !todo.startDateTime
+                      );
 
-                      {/* 逾期未完成 (结束时间早于现在) */}
-                      {(() => {
-                        const now = new Date();
-                        const overdueTodos = todos.filter(todo => {
-                          if (todo.completed) return false;
-                          if (todo.suspended) return false;
-                          // 使用结束时间判断逾期，如果没有结束时间则使用开始时间
-                          const endTime = todo.endDateTime ? new Date(todo.endDateTime) : (todo.startDateTime ? new Date(todo.startDateTime) : null);
-                          return endTime && endTime < now;
-                        });
+                      return (
+                        <SectionBlock
+                          title="无日期"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-300"
+                          todos={noDateTodos}
+                          itemClassName={`group relative min-w-0 p-2.5 rounded-lg border transition-all duration-300 hover:shadow-md ${"bg-content1 border-default-100 hover:border-default-300"}`}
+                        />
+                      );
+                    })()}
 
-                        return overdueTodos.length > 0 && (
-                          <SectionBlock
-                            title="逾期未完成"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-danger animate-pulse"
-                            todos={overdueTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-danger/30 bg-danger/5 transition-all duration-300 hover:shadow-md hover:border-danger/50"
-                            getDateChip={(todo) => (
-                              todo.startDateTime ? (
-                                <Chip
-                                  size="sm"
-                                  variant="flat"
-                                  color="danger"
-                                  className="h-4 text-[10px] px-1 min-w-0"
-                                >
-                                  {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                  {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
-                                </Chip>
-                              ) : null
-                            )}
-                          />
-                        );
-                      })()}
+                    {/* 逾期未完成 (结束时间早于现在) */}
+                    {(() => {
+                      const now = new Date();
+                      const overdueTodos = todos.filter(todo => {
+                        if (todo.completed) return false;
+                        if (todo.suspended) return false;
+                        // 使用结束时间判断逾期，如果没有结束时间则使用开始时间
+                        const endTime = todo.endDateTime ? new Date(todo.endDateTime) : (todo.startDateTime ? new Date(todo.startDateTime) : null);
+                        return endTime && endTime < now;
+                      });
 
-                      {/* 本周 (今天之后的本周内) */}
-                      {(() => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const endOfWeek = new Date(today);
-                        endOfWeek.setDate(today.getDate() + (7 - today.getDay()) % 7);
-                        endOfWeek.setHours(23, 59, 59, 999);
+                      return overdueTodos.length > 0 && (
+                        <SectionBlock
+                          title="逾期未完成"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-danger animate-pulse"
+                          todos={overdueTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-danger/30 bg-danger/5 transition-all duration-300 hover:shadow-md hover:border-danger/50"
+                          getDateChip={(todo) => (
+                            todo.startDateTime ? (
+                              <Chip
+                                size="sm"
+                                variant="flat"
+                                color="danger"
+                                className="h-4 text-[10px] px-1 min-w-0"
+                              >
+                                {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+                              </Chip>
+                            ) : null
+                          )}
+                        />
+                      );
+                    })()}
 
-                        const thisWeekTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
-                          const todoDate = new Date(todo.startDateTime);
-                          todoDate.setHours(0, 0, 0, 0);
-                          return todoDate > today && todoDate <= endOfWeek;
-                        })());
+                    {/* 本周 (今天之后的本周内) */}
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const endOfWeek = new Date(today);
+                      endOfWeek.setDate(today.getDate() + (7 - today.getDay()) % 7);
+                      endOfWeek.setHours(23, 59, 59, 999);
 
-                        return thisWeekTodos.length > 0 && (
-                          <SectionBlock
-                            title="本周"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary"
-                            todos={thisWeekTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-primary/20 bg-primary/5 transition-all duration-300 hover:shadow-md"
-                            getDateChip={(todo) => (
-                              todo.startDateTime ? (
-                                <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
-                                  {new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                                  {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</>}
-                                </Chip>
-                              ) : null
-                            )}
-                          />
-                        );
-                      })()}
+                      const thisWeekTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
+                        const todoDate = new Date(todo.startDateTime);
+                        todoDate.setHours(0, 0, 0, 0);
+                        return todoDate > today && todoDate <= endOfWeek;
+                      })());
 
-                      {/* 下周 */}
-                      {(() => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const startOfNextWeek = new Date(today);
-                        startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()) % 7 + 1);
-                        startOfNextWeek.setHours(0, 0, 0, 0);
-                        const endOfNextWeek = new Date(startOfNextWeek);
-                        endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
-                        endOfNextWeek.setHours(23, 59, 59, 999);
+                      return thisWeekTodos.length > 0 && (
+                        <SectionBlock
+                          title="本周"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-primary"
+                          todos={thisWeekTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-primary/20 bg-primary/5 transition-all duration-300 hover:shadow-md"
+                          getDateChip={(todo) => (
+                            todo.startDateTime ? (
+                              <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
+                                {new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                                {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</>}
+                              </Chip>
+                            ) : null
+                          )}
+                        />
+                      );
+                    })()}
 
-                        const nextWeekTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
-                          const todoDate = new Date(todo.startDateTime);
-                          return todoDate >= startOfNextWeek && todoDate <= endOfNextWeek;
-                        })());
+                    {/* 下周 */}
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const startOfNextWeek = new Date(today);
+                      startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()) % 7 + 1);
+                      startOfNextWeek.setHours(0, 0, 0, 0);
+                      const endOfNextWeek = new Date(startOfNextWeek);
+                      endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
+                      endOfNextWeek.setHours(23, 59, 59, 999);
 
-                        return nextWeekTodos.length > 0 && (
-                          <SectionBlock
-                            title="下周"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-secondary"
-                            todos={nextWeekTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-secondary/20 bg-secondary/5 transition-all duration-300 hover:shadow-md"
-                            getDateChip={(todo) => (
-                              todo.startDateTime ? (
-                                <Chip size="sm" variant="flat" color="secondary" className="h-4 text-[10px] px-1 min-w-0">
-                                  {new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                                  {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</>}
-                                </Chip>
-                              ) : null
-                            )}
-                          />
-                        );
-                      })()}
+                      const nextWeekTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
+                        const todoDate = new Date(todo.startDateTime);
+                        return todoDate >= startOfNextWeek && todoDate <= endOfNextWeek;
+                      })());
 
-                      {/* 下个月 */}
-                      {(() => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const startOfNextWeek = new Date(today);
-                        startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()) % 7 + 1);
-                        startOfNextWeek.setHours(0, 0, 0, 0);
-                        const endOfNextWeek = new Date(startOfNextWeek);
-                        endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
-                        endOfNextWeek.setHours(23, 59, 59, 999);
-                        const endOfNextMonth = new Date(today);
-                        endOfNextMonth.setMonth(today.getMonth() + 1);
-                        endOfNextMonth.setHours(23, 59, 59, 999);
+                      return nextWeekTodos.length > 0 && (
+                        <SectionBlock
+                          title="下周"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-secondary"
+                          todos={nextWeekTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-secondary/20 bg-secondary/5 transition-all duration-300 hover:shadow-md"
+                          getDateChip={(todo) => (
+                            todo.startDateTime ? (
+                              <Chip size="sm" variant="flat" color="secondary" className="h-4 text-[10px] px-1 min-w-0">
+                                {new Date(todo.startDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                                {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</>}
+                              </Chip>
+                            ) : null
+                          )}
+                        />
+                      );
+                    })()}
 
-                        const nextMonthTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
-                          const todoDate = new Date(todo.startDateTime);
-                          return todoDate > endOfNextWeek && todoDate <= endOfNextMonth;
-                        })());
+                    {/* 下个月 */}
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const startOfNextWeek = new Date(today);
+                      startOfNextWeek.setDate(today.getDate() + (7 - today.getDay()) % 7 + 1);
+                      startOfNextWeek.setHours(0, 0, 0, 0);
+                      const endOfNextWeek = new Date(startOfNextWeek);
+                      endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
+                      endOfNextWeek.setHours(23, 59, 59, 999);
+                      const endOfNextMonth = new Date(today);
+                      endOfNextMonth.setMonth(today.getMonth() + 1);
+                      endOfNextMonth.setHours(23, 59, 59, 999);
 
-                        return nextMonthTodos.length > 0 && (
-                          <SectionBlock
-                            title="下个月"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-info"
-                            todos={nextMonthTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-info/20 bg-info/5 transition-all duration-300 hover:shadow-md"
-                            getDateChip={(todo) => (
-                              todo.startDateTime ? (
-                                <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
-                                  {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                  {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
-                                </Chip>
-                              ) : null
-                            )}
-                          />
-                        );
-                      })()}
+                      const nextMonthTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && (() => {
+                        const todoDate = new Date(todo.startDateTime);
+                        return todoDate > endOfNextWeek && todoDate <= endOfNextMonth;
+                      })());
 
-                      {/* 未来 */}
-                      {(() => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const endOfNextMonth = new Date(today);
-                        endOfNextMonth.setMonth(today.getMonth() + 1);
-                        endOfNextMonth.setHours(23, 59, 59, 999);
+                      return nextMonthTodos.length > 0 && (
+                        <SectionBlock
+                          title="下个月"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-info"
+                          todos={nextMonthTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-info/20 bg-info/5 transition-all duration-300 hover:shadow-md"
+                          getDateChip={(todo) => (
+                            todo.startDateTime ? (
+                              <Chip size="sm" variant="flat" color="primary" className="h-4 text-[10px] px-1 min-w-0">
+                                {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+                              </Chip>
+                            ) : null
+                          )}
+                        />
+                      );
+                    })()}
 
-                        const futureTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && new Date(todo.startDateTime) > endOfNextMonth);
+                    {/* 未来 */}
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const endOfNextMonth = new Date(today);
+                      endOfNextMonth.setMonth(today.getMonth() + 1);
+                      endOfNextMonth.setHours(23, 59, 59, 999);
 
-                        return futureTodos.length > 0 && (
-                          <SectionBlock
-                            title="未来"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400"
-                            todos={futureTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-200 bg-default-50 transition-all duration-300 hover:shadow-md"
-                            getDateChip={(todo) => (
-                              todo.startDateTime ? (
-                                <Chip size="sm" variant="flat" className="h-4 text-[10px] px-1 bg-default-100 text-default-500 min-w-0">
-                                  {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                  {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
-                                </Chip>
-                              ) : null
-                            )}
-                          />
-                        );
-                      })()}
+                      const futureTodos = todos.filter(todo => !todo.completed && !todo.suspended && todo.startDateTime && new Date(todo.startDateTime) > endOfNextMonth);
 
-                      {/* 已挂起 */}
-                      {(() => {
-                        const suspendedTodos = todos.filter(todo => todo.suspended);
+                      return futureTodos.length > 0 && (
+                        <SectionBlock
+                          title="未来"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400"
+                          todos={futureTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-200 bg-default-50 transition-all duration-300 hover:shadow-md"
+                          getDateChip={(todo) => (
+                            todo.startDateTime ? (
+                              <Chip size="sm" variant="flat" className="h-4 text-[10px] px-1 bg-default-100 text-default-500 min-w-0">
+                                {new Date(todo.startDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                {todo.endDateTime && <> - {new Date(todo.endDateTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+                              </Chip>
+                            ) : null
+                          )}
+                        />
+                      );
+                    })()}
 
-                        return suspendedTodos.length > 0 && (
-                          <SectionBlock
-                            title="已挂起"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400 animate-[pulse_3s_ease-in-out_infinite]"
-                            todos={suspendedTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-200 bg-default-100/50 opacity-70 hover:opacity-100 transition-all duration-300"
-                          />
-                        );
-                      })()}
+                    {/* 已挂起 */}
+                    {(() => {
+                      const suspendedTodos = todos.filter(todo => todo.suspended);
 
-                      {/* 已完成 */}
-                      {(() => {
-                        const completedTodos = todos.filter(todo => todo.completed);
+                      return suspendedTodos.length > 0 && (
+                        <SectionBlock
+                          title="已挂起"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-default-400 animate-[pulse_3s_ease-in-out_infinite]"
+                          todos={suspendedTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-200 bg-default-100/50 opacity-70 hover:opacity-100 transition-all duration-300"
+                        />
+                      );
+                    })()}
 
-                        return completedTodos.length > 0 && (
-                          <SectionBlock
-                            title="已完成"
-                            indicatorClassName="w-1.5 h-1.5 rounded-full bg-success"
-                            todos={completedTodos}
-                            itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-100 bg-default-50/50 opacity-60 hover:opacity-100 transition-all duration-200"
-                          />
-                        );
-                      })()}
-                    </>
-                  )}
+                    {/* 已完成 */}
+                    {(() => {
+                      const completedTodos = todos.filter(todo => todo.completed);
+
+                      return completedTodos.length > 0 && (
+                        <SectionBlock
+                          title="已完成"
+                          indicatorClassName="w-1.5 h-1.5 rounded-full bg-success"
+                          todos={completedTodos}
+                          itemClassName="group relative min-w-0 p-2.5 rounded-lg border border-default-100 bg-default-50/50 opacity-60 hover:opacity-100 transition-all duration-200"
+                        />
+                      );
+                    })()}
+                  </>
+                )}
               </div>
             </ScrollShadow>
           </>

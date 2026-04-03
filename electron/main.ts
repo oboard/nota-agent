@@ -13,7 +13,7 @@ const getWindowChromeOptions = () => {
   if (process.platform === 'darwin') {
     return {
       titleBarStyle: 'hiddenInset' as const,
-      trafficLightPosition: { x: 14, y: 16 },
+      trafficLightPosition: { x: 14, y: 14 },
     }
   }
 
