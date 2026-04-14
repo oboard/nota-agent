@@ -437,6 +437,25 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     };
   }, []);
 
+  // 监听来自搜索的跳转事件
+  useEffect(() => {
+    const handleSearchNavigate = async (event: Event) => {
+      const { date, msgId } = (event as CustomEvent).detail;
+      await handleDateSelect(date);
+      // 等待消息渲染后精确滚动到目标消息
+      setTimeout(() => {
+        const el = document.querySelector(`[data-message-id="${msgId}"]`);
+        if (el) {
+          (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 500);
+    };
+    window.addEventListener('searchNavigate', handleSearchNavigate);
+    return () => {
+      window.removeEventListener('searchNavigate', handleSearchNavigate);
+    };
+  }, []);
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
       {/* 使用新的 Navbar 组件 */}

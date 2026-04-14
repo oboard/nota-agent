@@ -197,16 +197,15 @@ export const Navbar = ({
     setSearchQuery(query);
     if (!query.trim()) {
       setSearchResults([]);
-      setIsSearchOpen(false);
       return;
     }
 
     setIsSearchOpen(true);
     setIsSearching(true);
     try {
-      // 这里应该调用实际的搜索 API
-      // 暂时模拟搜索结果
-      const results = await searchMessages(query);
+      const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, types: ['memory', 'note', 'chat'] }) });
+      const data = await res.json();
+      const results = data.results || [];
       setSearchResults(results);
     } catch (error) {
       console.error('搜索失败:', error);
@@ -216,36 +215,6 @@ export const Navbar = ({
     }
   };
 
-  const searchMessages = async (query: string) => {
-    // 模拟搜索功能 - 实际应该从 API 获取
-    // 这里可以调用后端 API 来搜索全局聊天记录
-    return [];
-  };
-
-  const searchInput = (
-    <Input
-      aria-label="Search"
-      classNames={{
-        inputWrapper: "bg-default-100",
-        input: "text-sm",
-      }}
-      value={searchQuery}
-      onValueChange={handleSearch}
-      endContent={
-        <Kbd className="hidden lg:inline-block" keys={["command"]}>
-          K
-        </Kbd>
-      }
-      labelPlacement="outside"
-      placeholder="Search messages..."
-      startContent={
-        <SearchIcon className="text-base text-default-400 pointer-events-none flex-shrink-0" />
-      }
-      type="search"
-      style={isElectron ? noDragRegionStyle : undefined}
-      onFocus={() => setIsSearchOpen(true)}
-    />
-  );
 
   // 在聊天页面不渲染标准navbar
   if (isChatPage && !showChatControls) {
@@ -383,7 +352,7 @@ export const Navbar = ({
 
             <ThemeSwitch />
           </NavbarItem>
-          <NavbarItem className="hidden lg:flex">{searchInput}</NavbarItem>
+          <NavbarItem className="hidden lg:flex" style={isElectron ? noDragRegionStyle : undefined}><Button isIconOnly size="sm" variant="light" onPress={() => { setSearchQuery(""); setSearchResults([]); setIsSearchOpen(true); }} className="min-w-0" title="搜索 (⌘K)"><SearchIcon className="w-4 h-4 text-default-500" /></Button></NavbarItem>
         </NavbarContent>
 
         <NavbarContent className="sm:hidden basis-1 pl-4" justify="end" style={isElectron ? noDragRegionStyle : undefined}>
@@ -417,13 +386,6 @@ export const Navbar = ({
           <ThemeSwitch />
           <NavbarMenuToggle />
         </NavbarContent>
-
-        <NavbarMenu style={isElectron ? noDragRegionStyle : undefined}>
-          <div className="mx-4 mt-2">
-            {searchInput}
-          </div>
-        </NavbarMenu>
-
       </HeroUINavbar>
 
       <RecentContextPopup
@@ -436,6 +398,7 @@ export const Navbar = ({
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         query={searchQuery}
+        onQueryChange={handleSearch}
         results={searchResults}
         isLoading={isSearching}
       />

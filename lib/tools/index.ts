@@ -33,3 +33,7 @@ export {
 
 // Skill 相关工具
 export { loadSkillTool } from "./skill";
+
+
+// Web Search 相关工具
+export { webSearchTool } from "./web-search";

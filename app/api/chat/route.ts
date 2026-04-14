@@ -20,6 +20,7 @@ import {
   createNoteTool,
   updateNoteTool,
   deleteNoteTool,
+  webSearchTool,
 } from "@/lib/tools";
 
 export const maxDuration = 30;
@@ -123,6 +124,7 @@ export async function POST(req: Request) {
       createNote: createNoteTool,
       updateNote: updateNoteTool,
       deleteNote: deleteNoteTool,
+      webSearch: webSearchTool,
     },
     onFinish: async ({ text }) => {
       // 保存对话记录

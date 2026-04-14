@@ -12,6 +12,7 @@ import {
   Clock3,
   ExternalLink,
   FileText,
+  Globe,
   Link2,
   ListTodo,
   Quote,
@@ -380,6 +381,57 @@ function TodoCard({
   );
 }
 
+
+
+function WebSearchCard({ part }: { part: any }) {
+  const output = part?.output;
+  const results = Array.isArray(output?.results) ? output.results : [];
+  const query = output?.query || getToolPayload(part)?.query;
+  const error = output?.error;
+
+  return (
+    <Surface className="rounded-[20px] border border-blue-200/80 bg-blue-50/95">
+      <div className="px-3 py-2.5">
+        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-800/75">
+          <Globe className="h-4 w-4" />
+          Web Search
+        </div>
+        {query ? (
+          <div className="mb-2 text-[11px] text-blue-900/70">关键词：{String(query)}</div>
+        ) : null}
+
+        {error ? (
+          <div className="rounded-xl border border-danger/30 bg-danger-50/70 px-2.5 py-2 text-[11px] text-danger-700">{String(error)}</div>
+        ) : null}
+
+        <div className="space-y-2">
+          {results.length > 0 ? results.slice(0, 5).map((item: any, idx: number) => {
+            const href = item?.resolvedUrl || item?.link;
+            return (
+              <a
+                key={`${String(item?.link || '')}-${idx}`}
+                href={String(href || '#')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl border border-blue-200/80 bg-white/85 px-2.5 py-2 transition-colors hover:bg-white"
+              >
+                <div className="line-clamp-2 text-[12px] font-semibold text-blue-950/90">{item?.title || 'Untitled'}</div>
+                <div className="mt-1 line-clamp-2 text-[11px] text-blue-900/65">{item?.snippet || '（无摘要）'}</div>
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-blue-800/70">
+                  <span className="truncate">{String(item?.resolvedUrl || item?.link || '')}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+                </div>
+              </a>
+            );
+          }) : (
+            <div className="rounded-xl border border-blue-200/80 bg-white/85 px-2.5 py-2 text-[11px] text-blue-900/70">暂无搜索结果</div>
+          )}
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
 function GenericCard({ part }: { part: any }) {
   const toolName = getResolvedToolName(part) || "tool";
   const content = extractText(part.output || getToolPayload(part));
@@ -425,6 +477,10 @@ function renderToolWidget(part: any, onOpenTodoPanel: () => void) {
 
   if (toolName.toLowerCase().includes("todo")) {
     return <TodoCard part={part} onOpenPanel={onOpenTodoPanel} />;
+  }
+
+  if (toolName === "webSearch") {
+    return <WebSearchCard part={part} />;
   }
 
   return <GenericCard part={part} />;
