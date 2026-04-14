@@ -5,7 +5,6 @@ import { useChat } from "@ai-sdk/react";
 import { Button } from "@heroui/button";
 import { Textarea } from "@heroui/input";
 import { ScrollShadow } from "@heroui/scroll-shadow";
-import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Drawer, DrawerContent } from "@heroui/drawer";
 import { Spinner } from "@heroui/spinner";
 import { addMemory, getTodos } from "@/app/actions";
@@ -17,14 +16,15 @@ import { math } from '@streamdown/math';
 import { cjk } from '@streamdown/cjk';
 import { saveChat, loadMoreMessages, scrollToDate } from '@/app/actions';
 import { addTimestampSeparators } from '@/lib/chat-utils';
-import { getAlwaysOnTop, isElectronRuntime, openNotesBoardWindow, toggleAlwaysOnTop } from '@/lib/electron-window';
-import { announceNotesChanged, buildInternalNoteUrl } from "@/lib/note-window";
+import { getAlwaysOnTop, isElectronRuntime, toggleAlwaysOnTop } from '@/lib/electron-window';
+import { announceNotesChanged } from "@/lib/note-window";
 import { DatePanel } from '@/components/date-panel';
 import { TaskPanel } from "./task-panel";
 import { MessageItem } from "./message-item";
 import { ChevronLeft, ListTodo, ImageIcon, Save, ArrowUp, Sparkles, PanelLeft, PanelRight, Pin, PinOff, StickyNote } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
+import { Navbar } from './navbar';
 import 'katex/dist/katex.min.css';
 
 const dragRegionStyle = { WebkitAppRegion: 'drag' } as React.CSSProperties;
@@ -92,7 +92,7 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
         (mq as any).removeListener(update);
       }
     };
-  }, []);
+  }, [setTodoPanelExpanded]);
 
   useEffect(() => {
     const inElectron = isElectronRuntime()
@@ -206,7 +206,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     };
   }, []);
 
-
   const saveChatMessages = async () => {
     try {
       await saveChat(messages);
@@ -305,15 +304,7 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     setIsAlwaysOnTop(next)
   }, []);
 
-  const handleOpenNotesBoard = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (isElectronRuntime()) {
-      openNotesBoardWindow();
-      return;
-    }
-
-    window.open(buildInternalNoteUrl("/notes"), "_blank", "popup=yes,width=980,height=760");
-  }, []);
+  
 
   // 处理图片上传和 OCR 识别
   const handleImageUpload = useCallback(() => {
@@ -448,74 +439,13 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
-
-      <div
-        className={`relative z-20 flex h-11 items-center justify-between border-b border-default-200/60 bg-background/90 backdrop-blur-xl ${titlebarInsetClass}`}
-        style={isElectron ? dragRegionStyle : undefined}
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold tracking-[0.14em] text-foreground uppercase">Nota Agent</span>
-              <span className="rounded-full border border-success/20 bg-success/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.16em] text-success">
-                {statusLabel}
-              </span>
-            </div>
-            <div className="text-[11px] text-default-400">
-              {selectedDateLabel} · {messageCount} messages
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="pointer-events-auto flex items-center gap-1"
-          style={isElectron ? noDragRegionStyle : undefined}
-        >
-          {isElectron && (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="flat"
-              onPress={handleToggleAlwaysOnTop}
-              className={`h-7 min-h-7 w-7 min-w-7 border border-default-200/70 transition-colors ${isAlwaysOnTop ? 'bg-primary/10 text-primary' : 'bg-transparent text-default-400 hover:bg-default-100'}`}
-              title={isAlwaysOnTop ? "取消置顶" : "置顶窗口"}
-            >
-              {isAlwaysOnTop ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-            </Button>
-          )}
-          <Button
-            isIconOnly
-            size="sm"
-            variant="flat"
-            onPress={handleOpenNotesBoard}
-            className="h-7 min-h-7 w-7 min-w-7 border border-default-200/70 bg-transparent text-default-400 transition-colors hover:bg-default-100"
-            title="便笺"
-          >
-            <StickyNote className="h-4 w-4" />
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="flat"
-            onPress={toggleDatePanel}
-            className={`h-7 min-h-7 w-7 min-w-7 border border-default-200/70 transition-colors ${isDatePanelExpanded ? 'bg-default-100 text-foreground' : 'bg-transparent text-default-400 hover:bg-default-100'}`}
-          >
-            {isDatePanelExpanded ? <ChevronLeft className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="flat"
-            onPress={toggleTodoPanel}
-            className={`h-7 min-h-7 w-7 min-w-7 border border-default-200/70 transition-colors ${isTodoPanelExpanded ? 'bg-default-100 text-foreground' : 'bg-transparent text-default-400 hover:bg-default-100'}`}
-          >
-            {isTodoPanelExpanded ? <PanelRight className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
-          </Button>
-        </div>
-      </div>
+      {/* 使用新的 Navbar 组件 */}
+      <Navbar 
+        showChatControls={true}
+        onDateSelect={handleDateSelect}
+        onRefreshTodos={refreshData}
+        memories={memories}
+      />
 
       {/* Mobile DatePanel Drawer */}
       {isMobile && (
@@ -546,7 +476,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
       )}
 
       <div className="relative z-10 flex h-0 flex-1 flex-row">
-
         {/* 左侧日期选择面板 - 带有动画效果 */}
         <div className={`hidden lg:block flex-shrink-0 overflow-hidden border-r border-default-200/70 bg-content1/80 backdrop-blur-xl transition-all duration-300 ease-in-out ${isDatePanelExpanded ? 'w-[18.5rem] opacity-100' : 'w-0 opacity-0'}`}>
           <div className="h-full">
@@ -566,45 +495,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
               onScroll={handleScroll}
               className="flex-1 overflow-y-auto overflow-x-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.015),transparent_18%)]"
             >
-              {memories.length > 0 && (
-                <div className="mx-auto mb-1 w-full max-w-4xl px-3 pt-1.5 lg:px-5">
-                  <Accordion variant="splitted" className="px-0">
-                    <AccordionItem
-                      key="memories"
-                      aria-label="Recent Memories"
-                      classNames={{
-                        base: "border border-default-200/60 bg-content1/50 shadow-none",
-                        title: "text-[13px] font-medium text-default-400",
-                        content: "pt-1",
-                        trigger: "px-2.5 py-1.5",
-                      }}
-                      title={<span className="text-[13px] font-medium text-default-400">Recent Context ({memories.length})</span>}
-                    >
-                      <div className="flex flex-col gap-1.5 pb-1">
-                        {memories.map((memory) => (
-                          <div
-                            key={memory.id}
-                            className="flex gap-2 rounded-lg border border-default-200/50 bg-content2/30 px-2 py-1 text-[11px]"
-                          >
-                            <span className="mt-0.5 min-w-fit font-mono text-[11px] text-default-500">
-                              {new Date(memory.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <Streamdown
-                                plugins={plugins}
-                                className="sd-theme sd-theme--muted prose prose-sm max-w-none text-default-400 [&>p]:my-0"
-                              >
-                                {memory.content}
-                              </Streamdown>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
-              )}
-
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-2.5 px-3 pb-3 pt-2.5 lg:px-5">
                 {/* 加载更多指示器 */}
                 {isLoadingMore && (
@@ -645,7 +535,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
 
             </ScrollShadow>
           </div>
-
 
           <div className="border-t border-default-200/60 bg-background/92 px-3 py-2.5 backdrop-blur-xl lg:px-5 lg:py-2.5">
             <div className="mx-auto w-full max-w-3xl">
@@ -732,12 +621,11 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
           </div>
         </div>
 
-
         {/* 右侧工具面板 - 在移动端隐藏 */}
         <div className={`hidden lg:flex h-full overflow-hidden border-l border-default-200/70 bg-content1/80 backdrop-blur-xl transition-all duration-300 ease-in-out ${isTodoPanelExpanded ? 'w-[22rem] opacity-100' : 'w-0 opacity-0'}`}>
           <TaskPanel todos={todos} onRefresh={refreshData} />
         </div>
       </div>
-    </div >
+    </div>
   );
 }

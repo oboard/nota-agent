@@ -166,13 +166,13 @@ function MemoryCard({ part }: { part: any }) {
             <Brain className="h-4 w-4 text-sky-600" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <div className="text-[11px] font-semibold text-sky-950/85">
                 {isLongTerm ? "长期记住了这件事" : "这段内容已经被记住"}
               </div>
               <div className="h-1.5 w-1.5 rounded-full bg-sky-500/70" />
-            </div>
-            <div className="mt-1.5 rounded-xl border border-white/70 bg-white/55 px-2 py-1.5 text-[11px] leading-5 text-sky-950/80">
+            </div> */}
+            <div className="rounded-xl border border-white/70 bg-white/55 px-2 py-1.5 text-[11px] leading-5 text-sky-950/80">
               <div className="mb-1 flex items-center gap-1.5 text-sky-500/70">
                 <Quote className="h-3.5 w-3.5" />
                 <Sparkles className="h-3.5 w-3.5" />

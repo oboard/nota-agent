@@ -175,7 +175,7 @@ export async function getLongTermMemories() {
 }
 
 export async function getRecentMemories() {
-  return await storage.getRecentMemories(20);
+  return await storage.getRecentMemories(100);
 }
 
 function summarizeNoteForMemory(text: string, limit: number = 120) {

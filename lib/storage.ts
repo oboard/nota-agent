@@ -156,28 +156,7 @@ export class FileStorage {
     }
 
     async getLongTermMemories(limit: number = 50): Promise<MemoryData[]> {
-        // Get clusters from electron memory manager
-        try {
-            const clustersPath = path.join(this.dataDir, '.memory-clusters.json');
-            if (fsSync.existsSync(clustersPath)) {
-                const clustersData = JSON.parse(fsSync.readFileSync(clustersPath, 'utf-8'));
-                const longTermClusters = clustersData.filter((cluster: any) =>
-                    cluster.memories.some((m: any) => m.type === 'long_term')
-                );
-                if (longTermClusters.length > 0) {
-                    return longTermClusters.map((cluster: any, index: number) => ({
-                        id: `cluster-${index}`,
-                        content: cluster.summary,
-                        type: 'cluster_insight',
-                        createdAt: new Date().toISOString(),
-                    }));
-                }
-            }
-        } catch (error) {
-            console.error('Error reading long-term clusters:', error);
-        }
-
-        // Fallback to file-based storage
+        // 直接从文件读取长期记忆
         const fileName = 'long-term.md';
         const filePath = this.getFilePath(fileName);
         const memories: MemoryData[] = [];
@@ -199,29 +178,7 @@ export class FileStorage {
     }
 
     async getMemories(limit: number = 50): Promise<MemoryData[]> {
-        // Check for clusters from electron memory manager
-        try {
-            const clustersPath = path.join(this.dataDir, '.memory-clusters.json');
-            if (fsSync.existsSync(clustersPath)) {
-                const clustersData = JSON.parse(fsSync.readFileSync(clustersPath, 'utf-8'));
-                const recentClusters = clustersData.slice(0, Math.ceil(limit / 10)); // Get some clusters
-                const clusterMemories = recentClusters.flatMap((cluster: any) =>
-                    cluster.memories.slice(0, 5).map((memory: any, index: number) => ({
-                        id: `cluster-${cluster.id}-${index}`,
-                        content: memory.content,
-                        type: memory.type || 'cluster',
-                        createdAt: memory.timestamp || cluster.lastUpdated,
-                    }))
-                );
-                if (clusterMemories.length > 0) {
-                    return clusterMemories.slice(0, limit);
-                }
-            }
-        } catch (error) {
-            console.error('Error reading memory clusters:', error);
-        }
-
-        // Fallback to file-based storage
+        // 直接从文件读取记忆
         const memories: MemoryData[] = [];
 
         try {
@@ -294,49 +251,6 @@ export class FileStorage {
             .sort((a, b) => b.score - a.score)
             .slice(0, limit)
             .map(item => item.memory);
-    }
-
-    /**
-     * Get memory clusters from electron memory manager
-     */
-    async getMemoryClusters(): Promise<Array<{ theme: string, summary: string, count: number, type: string }>> {
-        try {
-            const clustersPath = path.join(this.dataDir, '.memory-clusters.json');
-            if (fsSync.existsSync(clustersPath)) {
-                const clustersData = JSON.parse(fsSync.readFileSync(clustersPath, 'utf-8'));
-                return clustersData.map((cluster: any) => ({
-                    theme: cluster.theme,
-                    summary: cluster.summary,
-                    count: cluster.memories.length,
-                    type: cluster.memories.some((m: any) => m.type === 'long_term') ? 'long_term' : 'regular'
-                }));
-            }
-        } catch (error) {
-            console.error('Error reading memory clusters:', error);
-        }
-        return [];
-    }
-
-    /**
-     * Get memory clusters from electron memory manager (represents compressed memories)
-     */
-    async compressMemories(): Promise<Array<{ theme: string, summary: string, count: number, memories: any[] }>> {
-        // Return existing clusters from electron memory manager
-        try {
-            const clustersPath = path.join(this.dataDir, '.memory-clusters.json');
-            if (fsSync.existsSync(clustersPath)) {
-                const clustersData = JSON.parse(fsSync.readFileSync(clustersPath, 'utf-8'));
-                return clustersData.map((cluster: any) => ({
-                    theme: cluster.theme,
-                    summary: cluster.summary,
-                    count: cluster.memories.length,
-                    memories: cluster.memories
-                }));
-            }
-        } catch (error) {
-            console.error('Error reading memory clusters:', error);
-        }
-        return [];
     }
 
     /**

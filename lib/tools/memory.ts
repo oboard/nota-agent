@@ -164,46 +164,6 @@ export const retrieveRelevantMemoriesTool = tool({
 });
 
 /**
- * 获取记忆洞察工具
- * 分析用户的记忆模式，提供洞察
- */
-export const getMemoryInsightsTool = tool({
-  description: "分析用户的记忆模式和偏好，提供洞察。当需要了解用户的长期行为模式或偏好时使用。",
-  inputSchema: z.object({}),
-  execute: async () => {
-    const clusters = await storage.getMemoryClusters();
-    const insights = await storage.getMemoryClusters();
-
-    if (insights.length === 0) {
-      return "暂无足够的记忆数据来生成洞察";
-    }
-
-    return "基于您的记忆分析：\n" + insights.map(insight => `• ${insight}`).join('\n');
-  },
-});
-
-/**
- * 压缩记忆工具
- * 将旧记忆压缩成聚类，减少存储空间
- */
-export const compressMemoriesTool = tool({
-  description: "压缩30天前的记忆，将其聚类成主题摘要。当记忆过多或需要整理时使用。",
-  inputSchema: z.object({}),
-  execute: async () => {
-    const clusters = await storage.compressMemories();
-
-    if (clusters.length === 0) {
-      return "没有需要压缩的记忆";
-    }
-
-    return `已压缩${clusters.length}个记忆主题：\n` +
-      clusters.map(cluster =>
-        `• ${cluster.theme}: ${cluster.memories.length}条记忆，摘要：${cluster.summary}`
-      ).join('\n');
-  },
-});
-
-/**
  * 搜索记忆工具
  * 根据关键词搜索记忆内容，支持正则表达式
  */
