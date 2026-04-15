@@ -11,6 +11,7 @@ interface Memory {
   content: string;
   type: string;
   createdAt: string;
+  category?: string | null;
 }
 
 interface RecentContextPopupProps {
@@ -99,9 +100,16 @@ export function RecentContextPopup({ isOpen, onClose, memories = [] }: RecentCon
                         className="flex flex-col gap-2 rounded-lg border border-default-200/50 bg-content2/30 p-3"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-primary">
-                            {memory.type === 'memory' ? 'Memory' : 'Context'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-primary">
+                              {memory.type === 'memory' ? 'Memory' : 'Context'}
+                            </span>
+                            {memory.category ? (
+                              <span className="text-[11px] rounded-full bg-default-100 px-2 py-0.5 text-default-600">
+                                {memory.category}
+                              </span>
+                            ) : null}
+                          </div>
                           <span className="text-xs text-default-500">
                             {new Date(memory.createdAt).toLocaleString()}
                           </span>

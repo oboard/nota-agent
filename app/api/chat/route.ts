@@ -1,6 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText, convertToModelMessages, generateText, type UIMessage } from "ai";
-import { addMemory, getNotes, getRecentMemories, getLongTermMemories, getTodos, saveConversation, saveLinkMetadata, saveChat } from "@/app/actions";
+import { addMemory, getNotes, getRecentMemories, getLongTermMemories, getTodos, saveConversation, saveLinkMetadata, saveChat, getMemoryCategories } from "@/app/actions";
 import { urlMetadataExtractor } from "@/lib/url-metadata";
 import { skillsManager } from "@/lib/skills-manager";
 import {
@@ -12,6 +12,9 @@ import {
   saveLongTermMemoryTool,
   autoSaveMemoryTool,
   memoryGrepTool,
+  listMemoryCategoriesTool,
+  reclassifyMemoryTool,
+  mergeMemoryCategoriesTool,
   cleanMemoryContent,
   isValidMemoryContent,
   loadSkillTool,
@@ -36,12 +39,13 @@ export async function POST(req: Request) {
   })(modelName)
 
   // 获取上下文信息和技能
-  const [recentMemories, longTermMemories, currentTodos, availableSkills, notes] = await Promise.all([
+  const [recentMemories, longTermMemories, currentTodos, availableSkills, notes, memoryCategories] = await Promise.all([
     getRecentMemories(),
     getLongTermMemories(),
     getTodos(),
     skillsManager.discoverSkills(),
     getNotes(),
+    getMemoryCategories(),
   ]);
 
   const skillsPrompt = skillsManager.buildSkillsPrompt(availableSkills);
@@ -59,6 +63,10 @@ export async function POST(req: Request) {
     ? notes.map(note => `- ${note.id}: ${note.title}（更新于 ${note.updatedAt}）`).join("\n")
     : "（暂无便笺）";
 
+  const categoriesText = memoryCategories.length > 0
+    ? memoryCategories.map(c => `- ${c.name}${c.disabled ? "（已停用）" : ""}`).join("\n")
+    : "（暂无分类）";
+
   const systemPrompt = `你是一个智能助手 NotaAgent。
   你的核心目标是帮助用户整理任务和回答问题。
   
@@ -73,6 +81,9 @@ export async function POST(req: Request) {
 
   ## 当前便笺（ID: 标题）：
   ${notesText}
+
+  ## 当前记忆分类：
+  ${categoriesText}
   
   ${skillsPrompt}
   
@@ -119,6 +130,9 @@ export async function POST(req: Request) {
       saveMemory: saveMemoryTool,
       saveLongTermMemory: saveLongTermMemoryTool,
       memoryGrep: memoryGrepTool,
+      listMemoryCategories: listMemoryCategoriesTool,
+      reclassifyMemory: reclassifyMemoryTool,
+      mergeMemoryCategories: mergeMemoryCategoriesTool,
       listNotes: listNotesTool,
       getNote: getNoteTool,
       createNote: createNoteTool,
@@ -201,7 +215,7 @@ export async function POST(req: Request) {
           const cleanedContent = cleanMemoryContent(simplifiedContent);
           const memoryText = `用户说: ${cleanedContent}`;
           if (isValidMemoryContent(memoryText)) {
-            await addMemory(memoryText);
+          await addMemory(memoryText, { categorySource: "agent" });
             console.log("没有提取到记忆，已保存用户原话作为记忆");
           } else {
             console.log("用户输入内容过短或无实质内容，跳过记忆保存");
@@ -219,7 +233,7 @@ export async function POST(req: Request) {
           const cleanedContent = cleanMemoryContent(simplifiedContent);
           const memoryText = `用户说: ${cleanedContent}`;
           if (isValidMemoryContent(memoryText)) {
-            await addMemory(memoryText);
+            await addMemory(memoryText, { categorySource: "agent" });
             console.log("记忆提取失败，已保存用户原话作为记忆");
           } else {
             console.log("用户输入内容过短或无实质内容，跳过记忆保存");

@@ -13,57 +13,67 @@
 }
 
 @layer base {
-    
     .sd-theme {
         color: color-mix(in oklab, currentColor 88%, transparent);
-        line-height: 1.5;
         font-size: 0.8125rem;
+        line-height: 1.5;
         font-feature-settings: "liga" 1, "calt" 1;
-        --spacing: 0.2rem;
+
+        --sd-border: color-mix(in oklab, currentColor 10%, transparent);
+        --sd-border-strong: color-mix(in oklab, currentColor 14%, transparent);
+        --sd-surface: color-mix(in oklab, currentColor 3%, transparent);
+        --sd-surface-soft: color-mix(in oklab, white 94%, currentColor 2%);
+        --sd-surface-muted: color-mix(in oklab, white 88%, currentColor 4%);
+        --sd-inline-code-bg: color-mix(in oklab, white 90%, currentColor 4%);
+        --sd-inline-code-border: color-mix(in oklab, currentColor 10%, white 78%);
+        --sd-inline-code-color: color-mix(in oklab, currentColor 82%, transparent);
+        --sd-link-border: color-mix(in oklab, currentColor 18%, transparent);
+        --sd-marker: color-mix(in oklab, currentColor 45%, transparent);
+        --sd-quote-text: color-mix(in oklab, currentColor 72%, transparent);
+        --sd-code-header-text: color-mix(in oklab, currentColor 52%, transparent);
+        --sd-code-header-hover-bg: color-mix(in oklab, currentColor 7%, white 70%);
+        --sd-code-header-hover-text: color-mix(in oklab, currentColor 96%, transparent);
+    }
+
+    :is(.dark .sd-theme) {
+        --sd-border: color-mix(in oklab, white 10%, currentColor 16%);
+        --sd-border-strong: color-mix(in oklab, white 8%, currentColor 16%);
+        --sd-surface: color-mix(in oklab, #111827 92%, currentColor 4%);
+        --sd-surface-soft: color-mix(in oklab, #111827 95%, currentColor 3%);
+        --sd-surface-muted: color-mix(in oklab, #1f2937 90%, currentColor 4%);
+        --sd-inline-code-bg: color-mix(in oklab, #1f2937 88%, currentColor 5%);
+        --sd-inline-code-border: color-mix(in oklab, white 10%, currentColor 14%);
+        --sd-inline-code-color: color-mix(in oklab, white 90%, currentColor 8%);
+        --sd-link-border: color-mix(in oklab, currentColor 24%, transparent);
+        --sd-marker: color-mix(in oklab, currentColor 55%, transparent);
+        --sd-quote-text: color-mix(in oklab, currentColor 78%, transparent);
+        --sd-code-header-text: color-mix(in oklab, white 54%, currentColor 18%);
+        --sd-code-header-hover-bg: color-mix(in oklab, white 8%, currentColor 14%);
+        --sd-code-header-hover-text: color-mix(in oklab, white 94%, currentColor 6%);
     }
 
     .sd-theme :where(h1, h2, h3, h4) {
-        margin-top: 0.85rem;
-        margin-bottom: 0.4rem;
+        margin: 0.85rem 0 0.4rem;
         font-weight: 600;
         line-height: 1.32;
         letter-spacing: -0.015em;
         color: color-mix(in oklab, currentColor 98%, transparent);
     }
 
-    .sd-theme :where(h1) {
-        font-size: 1.03rem;
-    }
+    .sd-theme :where(h1) { font-size: 1.03rem; }
+    .sd-theme :where(h2) { font-size: 0.95rem; }
+    .sd-theme :where(h3, h4) { font-size: 0.88rem; }
 
-    .sd-theme :where(h2) {
-        font-size: 0.95rem;
-    }
-
-    .sd-theme :where(h3, h4) {
-        font-size: 0.88rem;
-    }
-
-    .sd-theme :where(p, ul, ol, blockquote, pre) {
-        margin-block: 0.42rem;
-    }
-
-    .sd-theme :where(ul, ol) {
-        padding-left: 1.05rem;
-    }
-
-    .sd-theme :where(li) {
-        margin-block: 0.14rem;
-    }
-
+    .sd-theme :where(p, ul, ol, blockquote, pre, table) { margin-block: 0.42rem; }
+    .sd-theme :where(ul, ol) { padding-left: 1.05rem; }
+    .sd-theme :where(li) { margin-block: 0.14rem; }
     .sd-theme :where(ul > li)::marker,
-    .sd-theme :where(ol > li)::marker {
-        color: color-mix(in oklab, currentColor 45%, transparent);
-    }
+    .sd-theme :where(ol > li)::marker { color: var(--sd-marker); }
 
     .sd-theme :where(a) {
         color: color-mix(in oklab, currentColor 94%, transparent);
         text-decoration: none;
-        border-bottom: 1px solid color-mix(in oklab, currentColor 18%, transparent);
+        border-bottom: 1px solid var(--sd-link-border);
         transition: color 160ms ease, border-color 160ms ease;
     }
 
@@ -80,32 +90,32 @@
     .sd-theme :where(hr) {
         margin-block: 0.65rem;
         border: 0;
-        border-top: 1px solid color-mix(in oklab, currentColor 10%, transparent);
+        border-top: 1px solid var(--sd-border);
     }
 
     .sd-theme :where(blockquote) {
-        border-left: 2px solid color-mix(in oklab, currentColor 14%, transparent);
-        background: color-mix(in oklab, currentColor 3%, transparent);
+        border-left: 2px solid var(--sd-border-strong);
         border-radius: 0.7rem;
+        background: var(--sd-surface);
         padding: 0.5rem 0.7rem;
-        color: color-mix(in oklab, currentColor 72%, transparent);
+        color: var(--sd-quote-text);
     }
 
     .sd-theme :where(code):not(:where(pre code)) {
-        border: 1px solid color-mix(in oklab, currentColor 10%, white 78%);
-        background: color-mix(in oklab, white 90%, currentColor 4%);
+        border: 1px solid var(--sd-inline-code-border);
         border-radius: 0.5rem;
+        background: var(--sd-inline-code-bg);
         padding: 0.1rem 0.34rem;
-        font-size: 0.78em;
         font-family: var(--font-mono);
-        color: color-mix(in oklab, currentColor 82%, transparent);
+        font-size: 0.78em;
+        color: var(--sd-inline-code-color);
     }
 
     .sd-theme :where(pre) {
         overflow-x: auto;
-        border: 1px solid color-mix(in oklab, currentColor 10%, white 76%);
-        background: color-mix(in oklab, white 92%, currentColor 3%);
+        border: 1px solid var(--sd-border);
         border-radius: 0.95rem;
+        background: var(--sd-surface);
         padding: 0.85rem 0.95rem;
     }
 
@@ -120,18 +130,20 @@
     .sd-theme [data-streamdown="code-block"] {
         margin-block: 0.55rem;
         overflow: hidden;
-        border: 1px solid color-mix(in oklab, currentColor 10%, white 76%);
+        border: 1px solid var(--sd-border);
         border-radius: 0.95rem;
-        background: color-mix(in oklab, white 94%, currentColor 2%);
+        background: var(--sd-surface-soft);
     }
 
     .sd-theme [data-streamdown="code-block-header"] {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid color-mix(in oklab, currentColor 8%, white 72%);
-        background: color-mix(in oklab, white 88%, currentColor 4%);
-        color: color-mix(in oklab, currentColor 52%, transparent);
+        gap: 0.75rem;
+        border-bottom: 1px solid var(--sd-border-strong);
+        background: var(--sd-surface-muted);
+        padding: 0.42rem 0.7rem;
+        color: var(--sd-code-header-text);
         font-size: 0.68rem;
         line-height: 1;
     }
@@ -147,13 +159,13 @@
         justify-content: center;
         border-radius: 0.45rem;
         padding: 0.18rem;
-        color: color-mix(in oklab, currentColor 82%, transparent);
+        color: var(--sd-inline-code-color);
         transition: background-color 160ms ease, color 160ms ease;
     }
 
     .sd-theme [data-streamdown="code-block-header"] button:hover:not(:disabled) {
-        background: color-mix(in oklab, currentColor 7%, white 70%);
-        color: color-mix(in oklab, currentColor 96%, transparent);
+        background: var(--sd-code-header-hover-bg);
+        color: var(--sd-code-header-hover-text);
     }
 
     .sd-theme [data-streamdown="code-block"] :where(pre) {
@@ -178,19 +190,18 @@
     .sd-theme :where(table) {
         width: 100%;
         display: table;
+        overflow: hidden;
+        border: 1px solid var(--sd-border);
+        border-radius: 0.8rem;
         border-collapse: separate;
         border-spacing: 0;
-        border: 1px solid color-mix(in oklab, currentColor 9%, transparent);
-        border-radius: 0.8rem;
-        background: color-mix(in oklab, currentColor 3%, transparent);
+        background: var(--sd-surface);
         font-size: 0.78em;
         white-space: nowrap;
-        overflow: hidden;
-        margin-block: 0.42rem;
     }
 
     .sd-theme :where(th, td) {
-        border-bottom: 1px solid color-mix(in oklab, currentColor 10%, transparent);
+        border-bottom: 1px solid var(--sd-border);
         padding: 0.3rem 0.4rem;
         text-align: left;
         vertical-align: top;
@@ -199,19 +210,16 @@
     .sd-theme :where(th) {
         font-weight: 600;
         color: inherit;
-        background: color-mix(in oklab, currentColor 4%, transparent);
+        background: var(--sd-surface);
     }
 
-    .sd-theme :where(tr:last-child td) {
-        border-bottom: 0;
-    }
-
+    .sd-theme :where(tr:last-child td),
     .sd-theme :where(tbody tr:last-child th) {
         border-bottom: 0;
     }
 
     .sd-theme :where(td + td, th + th) {
-        border-left: 1px solid color-mix(in oklab, currentColor 8%, transparent);
+        border-left: 1px solid var(--sd-border);
     }
 
     .sd-theme--muted {
@@ -239,9 +247,4 @@
     .sd-theme--user {
         color: color-mix(in oklab, currentColor 94%, transparent);
     }
-
-    .sd-theme--user :where(a) {
-        border-color: color-mix(in oklab, currentColor 24%, transparent);
-    }
-
 }

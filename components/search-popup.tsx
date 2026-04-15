@@ -13,6 +13,7 @@ interface SearchResult {
   date: string;
   type: 'chat' | 'memory' | 'note';
   highlight?: string;
+  category?: string | null;
 }
 
 interface SearchPopupProps {
@@ -108,9 +109,16 @@ export function SearchPopup({ isOpen, onClose, query, onQueryChange, results, is
                         }}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-primary">
-                            {({ chat: '聊天', memory: '记忆', note: '笔记' } as Record<string, string>)[result.type] || result.type}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-primary">
+                              {({ chat: '聊天', memory: '记忆', note: '笔记' } as Record<string, string>)[result.type] || result.type}
+                            </span>
+                            {result.category ? (
+                              <span className="text-[11px] rounded-full bg-default-100 px-2 py-0.5 text-default-600">
+                                {result.category}
+                              </span>
+                            ) : null}
+                          </div>
                           <span className="text-xs text-default-500">
                             {formatDate(result.date)}
                           </span>

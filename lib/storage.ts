@@ -10,6 +10,20 @@ export interface MemoryData {
     createdAt: string;
     embedding?: number[];
     summary?: string;
+    category?: string | null;
+    categorySource?: "agent" | "user" | "system";
+    updatedAt?: string;
+    fileName?: string;
+    headerLine?: string;
+}
+
+export interface MemoryCategory {
+    name: string;
+    aliases: string[];
+    createdAt: string;
+    updatedAt: string;
+    count?: number;
+    disabled?: boolean;
 }
 
 export interface TaskPhase {
@@ -61,6 +75,7 @@ export interface NoteData {
 
 export class FileStorage {
     private dataDir: string;
+    private categoriesFileName = 'categories.json';
 
     constructor(dataDir: string = 'data/memories') {
         this.dataDir = dataDir;
@@ -83,6 +98,10 @@ export class FileStorage {
     private getFilePath(fileName: string): string {
         // 将数据目录与传入的文件名拼接成完整路径并返回
         return path.join(this.dataDir, fileName);
+    }
+
+    private getCategoriesFilePath(): string {
+        return this.getFilePath(this.categoriesFileName);
     }
 
     private async ensureDir(dirPath: string = this.dataDir): Promise<void> {
@@ -119,13 +138,30 @@ export class FileStorage {
         };
     }
 
-    async addMemory(content: string, type: string = "memory"): Promise<void> {
+    private normalizeCategoryName(category?: string | null): string | null {
+        const value = (category || '').trim();
+        if (!value) return null;
+        return value;
+    }
+
+    private formatMemoryHeader(type: string, timestamp: string, metadata?: { id?: string; category?: string | null; categorySource?: string | null }): string {
+        const parts: string[] = [];
+        if (metadata?.id) parts.push(`id=${metadata.id}`);
+        const category = this.normalizeCategoryName(metadata?.category);
+        if (category) parts.push(`category=${category}`);
+        if (metadata?.categorySource) parts.push(`source=${metadata.categorySource}`);
+        const meta = parts.length > 0 ? ` | ${parts.join(' | ')}` : '';
+        return `## ${type.toUpperCase()}${meta} - ${timestamp}`;
+    }
+
+    async addMemory(content: string, type: string = "memory", options?: { category?: string | null; categorySource?: "agent" | "user" | "system" }): Promise<void> {
         await this.ensureDir();
         const fileName = this.getTodayFileName();
         const filePath = this.getFilePath(fileName);
 
         const timestamp = new Date().toISOString();
-        const entry = `## ${type.toUpperCase()} - ${timestamp}\n\n${content}\n\n---\n\n`;
+        const id = `${fileName}-${timestamp}`;
+        const entry = `${this.formatMemoryHeader(type, timestamp, { ...options, id })}\n\n${content}\n\n---\n\n`;
 
         try {
             await fs.appendFile(filePath, entry);
@@ -137,13 +173,14 @@ export class FileStorage {
         // The electron memory manager will handle intelligent processing
     }
 
-    async addLongTermMemory(content: string): Promise<void> {
+    async addLongTermMemory(content: string, options?: { category?: string | null; categorySource?: "agent" | "user" | "system" }): Promise<void> {
         await this.ensureDir();
         const fileName = 'long-term.md';
         const filePath = this.getFilePath(fileName);
 
         const timestamp = new Date().toISOString();
-        const entry = `## LONG_TERM - ${timestamp}\n\n${content}\n\n---\n\n`;
+        const id = `${fileName}-${timestamp}`;
+        const entry = `${this.formatMemoryHeader('LONG_TERM', timestamp, { ...options, id })}\n\n${content}\n\n---\n\n`;
 
         try {
             await fs.appendFile(filePath, entry);
@@ -163,8 +200,8 @@ export class FileStorage {
 
         try {
             const content = await fs.readFile(filePath, 'utf-8');
-            const parsedMemories = this.parseMemoriesFromMarkdown(content, fileName);
-            memories.push(...parsedMemories);
+                    const parsedMemories = this.parseMemoriesFromMarkdown(content, fileName);
+                    memories.push(...parsedMemories);
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
                 console.error(`Error reading long-term memory file:`, err);
@@ -224,13 +261,23 @@ export class FileStorage {
     /**
      * Get relevant memories for current context using semantic search
      */
-    async getRelevantMemories(context: string, limit: number = 10): Promise<MemoryData[]> {
+    async getRelevantMemories(context: string, limit: number = 10, options?: { category?: string; categories?: string[] }): Promise<MemoryData[]> {
         // Simple keyword-based relevance for now
         // In production, this would use embeddings from the electron memory manager
         const allMemories = await this.getMemories(100); // Get more memories for filtering
+        const normalizedCategories = new Set(
+            (options?.categories || [options?.category]).map(category => this.normalizeCategoryName(category)).filter(Boolean) as string[]
+        );
         const contextWords = context.toLowerCase().split(/\s+/);
 
         const scoredMemories = allMemories.map(memory => {
+            if (normalizedCategories.size > 0) {
+                const memoryCategory = this.normalizeCategoryName(memory.category);
+                if (!memoryCategory || !normalizedCategories.has(memoryCategory)) {
+                    return { memory, score: -1 };
+                }
+            }
+
             const memoryWords = memory.content.toLowerCase().split(/\s+/);
             let score = 0;
 
@@ -256,9 +303,12 @@ export class FileStorage {
     /**
      * 搜索记忆 - 基于关键词搜索记忆内容
      */
-    async searchMemories(query: string, limit: number = 20): Promise<MemoryData[]> {
+    async searchMemories(query: string, limit: number = 20, options?: { category?: string; categories?: string[] }): Promise<MemoryData[]> {
         const allMemories = await this.getMemories(100);
         const queryLower = query.toLowerCase();
+        const normalizedCategories = new Set(
+            (options?.categories || [options?.category]).map(category => this.normalizeCategoryName(category)).filter(Boolean) as string[]
+        );
 
         // 支持正则表达式搜索
         let regex: RegExp | null = null;
@@ -269,6 +319,12 @@ export class FileStorage {
         }
 
         const matchedMemories = allMemories.filter(memory => {
+            if (normalizedCategories.size > 0) {
+                const memoryCategory = this.normalizeCategoryName(memory.category);
+                if (!memoryCategory || !normalizedCategories.has(memoryCategory)) {
+                    return false;
+                }
+            }
             if (regex) {
                 return regex.test(memory.content);
             }
@@ -285,6 +341,88 @@ export class FileStorage {
             .slice(0, limit);
     }
 
+    async updateMemoryCategory(memoryId: string, category?: string | null, categorySource: MemoryData["categorySource"] = "user"): Promise<boolean> {
+        const normalizedCategory = this.normalizeCategoryName(category);
+        const files = await fs.readdir(this.dataDir).catch(() => []);
+
+        for (const file of files.filter(file => file.endsWith('.md'))) {
+            const filePath = this.getFilePath(file);
+            const content = await fs.readFile(filePath, 'utf-8').catch(() => null);
+            if (!content) continue;
+
+            const updated = this.rewriteMemoryById(content, memoryId, normalizedCategory, categorySource);
+            if (updated !== content) {
+                await fs.writeFile(filePath, updated, 'utf-8');
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    async bulkUpdateMemoryCategory(fromCategory: string, toCategory?: string | null, categorySource: MemoryData["categorySource"] = "user"): Promise<number> {
+        const from = this.normalizeCategoryName(fromCategory);
+        const to = this.normalizeCategoryName(toCategory);
+        if (!from) return 0;
+
+        const files = await fs.readdir(this.dataDir).catch(() => []);
+        let updatedCount = 0;
+
+        for (const file of files.filter(file => file.endsWith('.md'))) {
+            const filePath = this.getFilePath(file);
+            const content = await fs.readFile(filePath, 'utf-8').catch(() => null);
+            if (!content) continue;
+
+            const updated = this.rewriteCategoryInContent(content, from, to, categorySource);
+            if (updated !== content) {
+                await fs.writeFile(filePath, updated, 'utf-8');
+                updatedCount += 1;
+            }
+        }
+
+        return updatedCount;
+    }
+
+    private rewriteMemoryById(content: string, memoryId: string, category: string | null, categorySource: MemoryData["categorySource"]): string {
+        const entries = content.split('---');
+        const rebuilt = entries.map(entry => {
+            const trimmed = entry.trim();
+            if (!trimmed) return '';
+            const lines = trimmed.split('\n');
+            const headerLine = lines.find(line => line.startsWith('## '));
+            if (!headerLine || !headerLine.includes(`id=${memoryId}`)) return trimmed;
+            const headerMatch = headerLine.match(/^##\s+(\w+)(?:\s+\|.*)?\s+-\s+(.+)$/);
+            if (!headerMatch) return trimmed;
+            const [, type, timestamp] = headerMatch;
+            const idMatch = headerLine.match(/id=([^|]+)/);
+            const id = idMatch?.[1]?.trim();
+            const body = lines.slice(lines.indexOf(headerLine) + 1).join('\n').trim();
+            const header = this.formatMemoryHeader(type, timestamp, { id, category, categorySource });
+            return `${header}\n\n${body}`;
+        }).filter(Boolean);
+        return rebuilt.join('\n\n---\n\n') + (rebuilt.length > 0 ? '\n\n---\n\n' : '');
+    }
+
+    private rewriteCategoryInContent(content: string, fromCategory: string, toCategory: string | null, categorySource: MemoryData["categorySource"]): string {
+        const entries = content.split('---');
+        const rebuilt = entries.map(entry => {
+            const trimmed = entry.trim();
+            if (!trimmed) return '';
+            const lines = trimmed.split('\n');
+            const headerLine = lines.find(line => line.startsWith('## '));
+            if (!headerLine || !headerLine.includes(`category=${fromCategory}`)) return trimmed;
+            const headerMatch = headerLine.match(/^##\s+(\w+)(?:\s+\|.*)?\s+-\s+(.+)$/);
+            if (!headerMatch) return trimmed;
+            const [, type, timestamp] = headerMatch;
+            const idMatch = headerLine.match(/id=([^|]+)/);
+            const id = idMatch?.[1]?.trim();
+            const body = lines.slice(lines.indexOf(headerLine) + 1).join('\n').trim();
+            const header = this.formatMemoryHeader(type, timestamp, { id, category: toCategory, categorySource });
+            return `${header}\n\n${body}`;
+        }).filter(Boolean);
+        return rebuilt.join('\n\n---\n\n') + (rebuilt.length > 0 ? '\n\n---\n\n' : '');
+    }
+
     private parseMemoriesFromMarkdown(content: string, fileName: string): MemoryData[] {
         const memories: MemoryData[] = [];
         const entries = content.split('---');
@@ -297,22 +435,57 @@ export class FileStorage {
             const headerLine = lines.find(line => line.startsWith('## '));
 
             if (headerLine) {
-                const headerMatch = headerLine.match(/^##\s+(\w+)\s+-\s+(.+)$/);
+                const headerMatch = headerLine.match(/^##\s+(\w+)(?:\s+\|\s+(.+?))?\s+-\s+(.+)$/);
                 if (headerMatch) {
-                    const [, type, timestamp] = headerMatch;
+                    const [, type, meta = '', timestamp] = headerMatch;
                     const content = lines.slice(lines.indexOf(headerLine) + 1).join('\n').trim();
+                    const metadata = Object.fromEntries(
+                        meta.split('|').map(item => item.trim()).filter(Boolean).map(item => {
+                            const [key, ...rest] = item.split('=');
+                            return [key.trim(), rest.join('=').trim()];
+                        })
+                    ) as Record<string, string>;
 
                     memories.push({
-                        id: `${fileName}-${timestamp}`,
+                        id: metadata.id || `${fileName}-${timestamp}`,
                         content,
                         type: type.toLowerCase(),
                         createdAt: timestamp,
+                        category: this.normalizeCategoryName(metadata.category ?? null),
+                        categorySource: (metadata.source as MemoryData["categorySource"]) || undefined,
+                        fileName,
+                        headerLine,
                     });
                 }
             }
         }
 
         return memories;
+    }
+
+    async getMemoryCategories(): Promise<MemoryCategory[]> {
+        try {
+            const content = await fs.readFile(this.getCategoriesFilePath(), 'utf-8');
+            const parsed = JSON.parse(content);
+            if (Array.isArray(parsed)) {
+                return parsed.map((item: any) => ({
+                    name: String(item.name || '').trim(),
+                    aliases: Array.isArray(item.aliases) ? item.aliases.map((a: any) => String(a).trim()).filter(Boolean) : [],
+                    createdAt: String(item.createdAt || new Date().toISOString()),
+                    updatedAt: String(item.updatedAt || new Date().toISOString()),
+                    count: typeof item.count === 'number' ? item.count : undefined,
+                    disabled: Boolean(item.disabled),
+                })).filter(category => category.name);
+            }
+        } catch (error: any) {
+            if (error?.code !== 'ENOENT') console.error('Error reading categories:', error);
+        }
+        return [];
+    }
+
+    async saveMemoryCategories(categories: MemoryCategory[]): Promise<void> {
+        await this.ensureDir();
+        await fs.writeFile(this.getCategoriesFilePath(), JSON.stringify(categories, null, 2), 'utf-8');
     }
 
     async saveTodo(todo: Omit<TodoData, 'id' | 'createdAt' | 'updatedAt'>): Promise<TodoData> {

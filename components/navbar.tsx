@@ -1,41 +1,41 @@
-"use client"
+"use client";
+
 import {
   Navbar as HeroUINavbar,
-  NavbarContent,
-  NavbarMenu,
-  NavbarMenuToggle,
   NavbarBrand,
+  NavbarContent,
   NavbarItem,
-  NavbarMenuItem,
 } from "@heroui/navbar";
 import { Button } from "@heroui/button";
 import { Kbd } from "@heroui/kbd";
-import { Link } from "@heroui/link";
 import { Select, SelectItem } from "@heroui/select";
-import { Input } from "@heroui/input";
-import { link as linkStyles } from "@heroui/theme";
-import NextLink from "next/link";
-import clsx from "clsx";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
-import { getAlwaysOnTop, isElectronRuntime, toggleAlwaysOnTop, openNotesBoardWindow } from "@/lib/electron-window";
+import { getAvailableDates } from "@/app/actions";
 import { ThemeSwitch } from "@/components/theme-switch";
-import {
-  GithubIcon,
-  SearchIcon,
-  Logo,
-} from "@/components/icons";
-import { getAvailableDates, getTodos } from "@/app/actions";
-import { Calendar, Pin, PinOff, Brain, ListTodo, PanelLeft, PanelRight, ChevronLeft, StickyNote } from "lucide-react";
-import { useDatePanelStore } from "@/lib/stores/date-panel-store";
-import { useTodoPanelStore } from "@/lib/stores/todo-panel-store";
+import { GithubIcon, Logo, SearchIcon } from "@/components/icons";
 import { RecentContextPopup } from "@/components/recent-context-popup";
 import { SearchPopup } from "@/components/search-popup";
 import { buildInternalNoteUrl } from "@/lib/note-window";
+import { useDatePanelStore } from "@/lib/stores/date-panel-store";
+import { useTodoPanelStore } from "@/lib/stores/todo-panel-store";
+import { getAlwaysOnTop, isElectronRuntime, openNotesBoardWindow, toggleAlwaysOnTop } from "@/lib/electron-window";
+import {
+  Brain,
+  Calendar,
+  ChevronLeft,
+  Github,
+  ListTodo,
+  PanelLeft,
+  PanelRight,
+  Pin,
+  PinOff,
+  StickyNote,
+} from "lucide-react";
 
-const dragRegionStyle = { WebkitAppRegion: 'drag' } as React.CSSProperties;
-const noDragRegionStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
+const dragRegionStyle = { WebkitAppRegion: "drag" } as React.CSSProperties;
+const noDragRegionStyle = { WebkitAppRegion: "no-drag" } as React.CSSProperties;
 
 interface DateItem {
   date: string;
@@ -50,40 +50,49 @@ interface NavbarProps {
   memories?: any[];
 }
 
+const iconButtonClass =
+  "h-7 min-h-7 w-7 min-w-7 border border-default-200/70 bg-transparent text-default-500 transition-colors hover:bg-default-100 hover:text-foreground";
+
+const panelButtonClass =
+  "h-7 min-h-7 w-7 min-w-7 border border-default-200/70 bg-transparent text-default-500 transition-colors hover:bg-default-100 hover:text-foreground";
+
 export const Navbar = ({
   onDateSelect,
-  onRefreshTodos,
   showChatControls = false,
-  memories = []
+  memories = [],
 }: NavbarProps) => {
   const pathname = usePathname();
-  const isChatPage = pathname?.startsWith('/chat');
+  const isChatPage = pathname?.startsWith("/chat");
 
   const [availableDates, setAvailableDates] = useState<DateItem[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [isLoadingDates, setIsLoadingDates] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   const [isRecentContextOpen, setIsRecentContextOpen] = useState(false);
-  const [todos, setTodos] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { isDatePanelExpanded, toggleDatePanel, setExpanded: setDatePanelExpanded } = useDatePanelStore();
   const { isTodoPanelExpanded, toggleTodoPanel, setExpanded: setTodoPanelExpanded } = useTodoPanelStore();
-  const [isMobile, setIsMobile] = useState(false);
+
   const titlebarInsetClass = isElectron ? "pl-20 pr-3 lg:pl-24 lg:pr-3" : "";
 
-  // 获取可用日期
+  const selectedDateLabel = useMemo(() => {
+    const current = availableDates.find((item) => item.date === selectedDate);
+    if (current) return formatDateDisplay(current.date);
+    return "今天";
+  }, [availableDates, selectedDate]);
+
   useEffect(() => {
     const fetchDates = async () => {
       setIsLoadingDates(true);
       try {
-        const dates = await getAvailableDates();
-        setAvailableDates(dates);
+        setAvailableDates(await getAvailableDates());
       } catch (error) {
-        console.error('获取可用日期失败:', error);
+        console.error("获取可用日期失败:", error);
       } finally {
         setIsLoadingDates(false);
       }
@@ -97,48 +106,54 @@ export const Navbar = ({
     setIsElectron(inElectron);
 
     if (!inElectron) return;
-
     getAlwaysOnTop().then(setIsAlwaysOnTop).catch(() => setIsAlwaysOnTop(false));
   }, []);
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1024px)');
+    const mq = window.matchMedia("(max-width: 1024px)");
     const update = () => {
       setIsMobile(mq.matches);
-      // 移动端默认收起，桌面端默认展开
-      if (mq.matches) {
-        setTodoPanelExpanded(false);
-      } else {
-        setTodoPanelExpanded(true);
-      }
-    }
+      setTodoPanelExpanded(!mq.matches);
+    };
+
     update();
-    // 兼容较老的浏览器事件API
     if ((mq as any).addEventListener) {
-      mq.addEventListener('change', update);
+      mq.addEventListener("change", update);
     } else {
       (mq as any).addListener(update);
     }
+
     return () => {
       if ((mq as any).removeEventListener) {
-        mq.removeEventListener('change', update);
+        mq.removeEventListener("change", update);
       } else {
         (mq as any).removeListener(update);
       }
     };
   }, [setTodoPanelExpanded]);
 
-  const refreshData = useCallback(async () => {
-    setTodos(await getTodos());
-    if (onRefreshTodos) {
-      onRefreshTodos();
-    }
-  }, [onRefreshTodos]);
+  const openSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearchOpen(true);
+  }, []);
 
-  const handleToggleAlwaysOnTop = async () => {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        openSearch();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [openSearch]);
+
+  const handleToggleAlwaysOnTop = useCallback(async () => {
     const next = await toggleAlwaysOnTop();
     setIsAlwaysOnTop(next);
-  };
+  }, []);
 
   const handleOpenNotesBoard = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -150,50 +165,20 @@ export const Navbar = ({
     window.open(buildInternalNoteUrl("/notes"), "_blank", "popup=yes,width=980,height=760");
   }, []);
 
-  const handleDateSelect = async (date: string) => {
-    setSelectedDate(date);
+  const handleDateSelect = useCallback(
+    (date: string) => {
+      setSelectedDate(date);
 
-    if (isMobile) {
-      setDatePanelExpanded(false);
-    }
+      if (isMobile) {
+        setDatePanelExpanded(false);
+      }
 
-    if (onDateSelect) {
-      onDateSelect(date);
-    }
-  };
+      onDateSelect?.(date);
+    },
+    [isMobile, onDateSelect, setDatePanelExpanded],
+  );
 
-  // 格式化日期显示
-  const formatDateDisplay = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    // 检查是否是今天
-    if (date.toDateString() === today.toDateString()) {
-      return '今天';
-    }
-
-    // 检查是否是昨天
-    if (date.toDateString() === yesterday.toDateString()) {
-      return '昨天';
-    }
-
-    // 检查是否是一周内
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    if (date > weekAgo) {
-      const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-      return weekdays[date.getDay()];
-    }
-
-    // 更早的日期
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${month}月${day}日`;
-  };
-
-  const handleSearch = async (query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
     if (!query.trim()) {
       setSearchResults([]);
@@ -203,20 +188,21 @@ export const Navbar = ({
     setIsSearchOpen(true);
     setIsSearching(true);
     try {
-      const res = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, types: ['memory', 'note', 'chat'] }) });
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, types: ["memory", "note", "chat"] }),
+      });
       const data = await res.json();
-      const results = data.results || [];
-      setSearchResults(results);
+      setSearchResults(data.results || []);
     } catch (error) {
-      console.error('搜索失败:', error);
+      console.error("搜索失败:", error);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
-  };
+  }, []);
 
-
-  // 在聊天页面不渲染标准navbar
   if (isChatPage && !showChatControls) {
     return null;
   }
@@ -226,51 +212,47 @@ export const Navbar = ({
       <HeroUINavbar
         maxWidth="xl"
         position="sticky"
-        className={`h-11 border-b border-default-200 ${titlebarInsetClass}`}
+        className={`h-11 border-b border-default-200/70 bg-background/85 backdrop-blur ${titlebarInsetClass}`}
         style={isElectron ? dragRegionStyle : undefined}
       >
-        <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
-          <NavbarBrand as="li" className="gap-3 max-w-fit">
-
+        <NavbarContent justify="start" className="min-w-0 gap-2">
+          <NavbarBrand className="hidden min-w-0 items-center gap-2 lg:flex">
             <Logo />
-            <p className="font-bold text-inherit">Nota Agent</p>
-
+            <div className="truncate text-[13px] font-semibold tracking-[0.14em] text-foreground uppercase">
+              Nota Agent
+            </div>
           </NavbarBrand>
 
-          {/* 聊天页面控制 - 只在聊天页面显示 */}
           {isChatPage && showChatControls && (
-            <div className="flex items-center gap-2" style={isElectron ? noDragRegionStyle : undefined}>
-              {/* 桌面端日期面板展开/收起按钮 */}
-              <div className="hidden lg:flex items-center gap-2">
+            <>
+              <NavbarItem className="hidden lg:flex" style={isElectron ? noDragRegionStyle : undefined}>
                 <Button
-                  isIconOnly
                   size="sm"
-                  variant="light"
+                  variant="flat"
                   onPress={toggleDatePanel}
-                  className="min-w-0"
-                  title={isDatePanelExpanded ? "收起历史面板" : "展开历史面板"}
+                  className="h-7 min-h-7 rounded-full border border-default-200/70 bg-default-50 px-2.5 text-[11px] text-default-600"
+                  startContent={isDatePanelExpanded ? <ChevronLeft className="h-3.5 w-3.5" /> : <Calendar className="h-3.5 w-3.5" />}
                 >
-                  <Calendar className={`w-4 h-4 transition-transform ${isDatePanelExpanded ? 'rotate-0' : 'rotate-180'}`} />
+                  {selectedDateLabel}
                 </Button>
-              </div>
+              </NavbarItem>
 
-              {/* 移动端日期选择器 */}
-              <div className="lg:hidden flex-1 max-w-[200px]" style={isElectron ? noDragRegionStyle : undefined}>
+              <NavbarItem className="lg:hidden min-w-[8rem] flex-1" style={isElectron ? noDragRegionStyle : undefined}>
                 <Select
                   size="sm"
+                  aria-label="选择聊天日期"
                   placeholder="选择日期"
                   selectedKeys={selectedDate ? [selectedDate] : []}
                   onSelectionChange={(keys) => {
                     const selected = Array.from(keys)[0] as string;
-                    if (selected) {
-                      setSelectedDate(selected);
-                      handleDateSelect(selected);
-                    }
+                    if (selected) handleDateSelect(selected);
                   }}
                   classNames={{
-                    trigger: "bg-default-100",
+                    trigger:
+                      "h-8 min-h-8 border border-default-200/70 bg-default-50 text-default-700 shadow-none",
+                    value: "text-[11px]",
                   }}
-                  startContent={<Calendar className="w-4 h-4" />}
+                  startContent={<Calendar className="h-4 w-4" />}
                   isLoading={isLoadingDates}
                 >
                   {availableDates.map((item) => (
@@ -282,109 +264,112 @@ export const Navbar = ({
                     </SelectItem>
                   ))}
                 </Select>
-              </div>
-            </div>
+              </NavbarItem>
+            </>
           )}
-
         </NavbarContent>
 
-        <NavbarContent
-          className="hidden sm:flex basis-1/5 sm:basis-full"
-          justify="end"
-        >
-          <NavbarItem className="hidden sm:flex gap-2" style={isElectron ? noDragRegionStyle : undefined}>
-            {isElectron && (
+        <NavbarContent justify="end" className="gap-1.5" style={isElectron ? noDragRegionStyle : undefined}>
+          <NavbarItem className="hidden lg:flex">
+            <Button
+              size="sm"
+              variant="flat"
+              onPress={openSearch}
+              className="h-7 min-h-7 rounded-full border border-default-200/70 bg-default-50 px-2.5 text-[11px] text-default-500"
+              startContent={<SearchIcon className="h-4 w-4 text-default-400" />}
+            >
+              搜索
+            </Button>
+          </NavbarItem>
+
+          <NavbarItem className="lg:hidden">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="flat"
+              onPress={openSearch}
+              className={iconButtonClass}
+              title="搜索"
+            >
+              <SearchIcon className="h-4 w-4" />
+            </Button>
+          </NavbarItem>
+
+          {isElectron && (
+            <NavbarItem>
               <Button
                 isIconOnly
                 size="sm"
-                variant="light"
+                variant="flat"
                 onPress={handleToggleAlwaysOnTop}
-                className="min-w-0"
+                className={iconButtonClass}
                 title={isAlwaysOnTop ? "取消置顶" : "置顶窗口"}
               >
-                {isAlwaysOnTop ? <PinOff className="w-4 h-4 text-primary" /> : <Pin className="w-4 h-4 text-default-500" />}
+                {isAlwaysOnTop ? <PinOff className="h-4 w-4 text-primary" /> : <Pin className="h-4 w-4" />}
               </Button>
-            )}
-            {showChatControls && (
-              <>
+            </NavbarItem>
+          )}
+
+          {showChatControls && (
+            <>
+              <NavbarItem>
                 <Button
                   isIconOnly
                   size="sm"
-                  variant="light"
+                  variant="flat"
                   onPress={handleOpenNotesBoard}
-                  className="min-w-0"
+                  className={iconButtonClass}
                   title="便笺"
                 >
-                  <StickyNote className="w-4 h-4" />
+                  <StickyNote className="h-4 w-4" />
                 </Button>
+              </NavbarItem>
+
+              <NavbarItem>
                 <Button
                   isIconOnly
                   size="sm"
-                  variant="light"
+                  variant="flat"
                   onPress={() => setIsRecentContextOpen(true)}
-                  className="min-w-0"
+                  className={iconButtonClass}
                   title="Recent Context"
                 >
-                  <Brain className="w-4 h-4 text-default-500" />
+                  <Brain className="h-4 w-4" />
                 </Button>
+              </NavbarItem>
+              
+              <NavbarItem>
                 <Button
                   isIconOnly
                   size="sm"
-                  variant="light"
-                  onPress={toggleDatePanel}
-                  className={`min-w-0 ${isDatePanelExpanded ? 'bg-default-100 text-foreground' : ''}`}
-                  title={isDatePanelExpanded ? "收起历史面板" : "展开历史面板"}
-                >
-                  {isDatePanelExpanded ? <ChevronLeft className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-                </Button>
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="light"
+                  variant="flat"
                   onPress={toggleTodoPanel}
-                  className={`min-w-0 ${isTodoPanelExpanded ? 'bg-default-100 text-foreground' : ''}`}
+                  className={`${panelButtonClass} ${isTodoPanelExpanded ? "bg-default-100 text-foreground" : ""}`}
                   title={isTodoPanelExpanded ? "收起待办面板" : "展开待办面板"}
                 >
-                  {isTodoPanelExpanded ? <PanelRight className="w-4 h-4" /> : <ListTodo className="w-4 h-4" />}
+                  {isTodoPanelExpanded ? <PanelRight className="h-4 w-4" /> : <ListTodo className="h-4 w-4" />}
                 </Button>
-              </>
-            )}
+              </NavbarItem>
+            </>
+          )}
 
+          {!showChatControls && (
+            <NavbarItem className="hidden sm:flex">
+              <a
+                aria-label="Github"
+                href="https://github.com/oboard/nota-agent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-default-200/70 text-default-500 transition-colors hover:bg-default-100 hover:text-foreground"
+              >
+                <GithubIcon className="h-4 w-4" />
+              </a>
+            </NavbarItem>
+          )}
+
+          <NavbarItem>
             <ThemeSwitch />
           </NavbarItem>
-          <NavbarItem className="hidden lg:flex" style={isElectron ? noDragRegionStyle : undefined}><Button isIconOnly size="sm" variant="light" onPress={() => { setSearchQuery(""); setSearchResults([]); setIsSearchOpen(true); }} className="min-w-0" title="搜索 (⌘K)"><SearchIcon className="w-4 h-4 text-default-500" /></Button></NavbarItem>
-        </NavbarContent>
-
-        <NavbarContent className="sm:hidden basis-1 pl-4" justify="end" style={isElectron ? noDragRegionStyle : undefined}>
-          {isElectron && (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={handleToggleAlwaysOnTop}
-              className="min-w-0"
-              title={isAlwaysOnTop ? "取消置顶" : "置顶窗口"}
-            >
-              {isAlwaysOnTop ? <PinOff className="w-4 h-4 text-primary" /> : <Pin className="w-4 h-4 text-default-500" />}
-            </Button>
-          )}
-          {showChatControls && (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={() => setIsRecentContextOpen(true)}
-              className="min-w-0"
-              title="Recent Context"
-            >
-              <Brain className="w-4 h-4 text-default-500" />
-            </Button>
-          )}
-          <Link isExternal aria-label="Github" href={"https://github.com/oboard/nota-agent"}>
-            <GithubIcon className="text-default-500" />
-          </Link>
-          <ThemeSwitch />
-          <NavbarMenuToggle />
         </NavbarContent>
       </HeroUINavbar>
 
@@ -393,7 +378,7 @@ export const Navbar = ({
         onClose={() => setIsRecentContextOpen(false)}
         memories={memories}
       />
-      
+
       <SearchPopup
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
@@ -405,3 +390,22 @@ export const Navbar = ({
     </>
   );
 };
+
+function formatDateDisplay(dateStr: string) {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return "今天";
+  if (date.toDateString() === yesterday.toDateString()) return "昨天";
+
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  if (date > weekAgo) {
+    const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    return weekdays[date.getDay()];
+  }
+
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}

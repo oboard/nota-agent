@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { addMemory, addLongTermMemory, getMemories, getLongTermMemories } from "@/app/actions";
+import { addMemory, addLongTermMemory, getMemories, getLongTermMemories, getMemoryCategories, updateMemoryCategory, mergeMemoryCategory } from "@/app/actions";
 import { storage } from "@/lib/storage";
 
 /**
@@ -99,8 +99,9 @@ export const saveMemoryTool = tool({
   description: "保存值得记忆的信息（事实、偏好、想法、重要日期等）。当用户分享重要信息、个人偏好或其他值得保存的内容时使用此工具。系统会自动判断是短期记忆还是长期记忆。",
   inputSchema: z.object({
     content: z.string().describe("提取出的核心记忆内容，简练陈述，不要包含HTML标签、XML参数或其他格式化标记"),
+    category: z.string().optional().describe("记忆分类，例如 工作、生活"),
   }),
-  execute: async ({ content }) => {
+  execute: async ({ content, category }) => {
     // 清理记忆内容
     const cleanedContent = cleanMemoryContent(content);
     if (!isValidMemoryContent(cleanedContent)) {
@@ -111,10 +112,10 @@ export const saveMemoryTool = tool({
     const isLongTerm = isLongTermMemoryContent(cleanedContent);
 
     if (isLongTerm) {
-      await addLongTermMemory(cleanedContent);
+      await addLongTermMemory(cleanedContent, { category, categorySource: "agent" });
       return `已保存为长期记忆：${cleanedContent}`;
     } else {
-      await addMemory(cleanedContent);
+      await addMemory(cleanedContent, { category, categorySource: "agent" });
       return `已保存记忆：${cleanedContent}`;
     }
   },
@@ -128,13 +129,14 @@ export const saveLongTermMemoryTool = tool({
   description: "保存为长期记忆。当用户明确表示这是长期偏好、永久记住的信息，或使用'以后...'、'记住...'等表达时使用。",
   inputSchema: z.object({
     content: z.string().describe("提取出的核心长期记忆内容，简练陈述"),
+    category: z.string().optional().describe("记忆分类，例如 工作、生活"),
   }),
-  execute: async ({ content }) => {
+  execute: async ({ content, category }) => {
     const cleanedContent = cleanMemoryContent(content);
     if (!isValidMemoryContent(cleanedContent)) {
       return "记忆内容无效或过短，未保存";
     }
-    await addLongTermMemory(cleanedContent);
+    await addLongTermMemory(cleanedContent, { category, categorySource: "agent" });
     return `已保存为长期记忆：${cleanedContent}`;
   },
 });
@@ -148,9 +150,10 @@ export const retrieveRelevantMemoriesTool = tool({
   inputSchema: z.object({
     context: z.string().describe("当前对话上下文或需要检索相关信息的主题"),
     limit: z.number().optional().describe("返回的记忆数量限制，默认5条").default(5),
+    category: z.string().optional().describe("只检索指定分类"),
   }),
-  execute: async ({ context, limit }) => {
-    const relevantMemories = await storage.getRelevantMemories(context, limit);
+  execute: async ({ context, limit, category }) => {
+    const relevantMemories = await storage.getRelevantMemories(context, limit, { category });
 
     if (relevantMemories.length === 0) {
       return "未找到相关记忆";
@@ -172,9 +175,10 @@ export const memoryGrepTool = tool({
   inputSchema: z.object({
     query: z.string().describe("搜索关键词或正则表达式"),
     limit: z.number().optional().describe("返回结果数量限制，默认20条").default(20),
+    category: z.string().optional().describe("只搜索指定分类"),
   }),
-  execute: async ({ query, limit }) => {
-    const results = await storage.searchMemories(query, limit);
+  execute: async ({ query, limit, category }) => {
+    const results = await storage.searchMemories(query, limit, { category });
 
     if (results.length === 0) {
       return `未找到与"${query}"相关的记忆`;
@@ -184,6 +188,40 @@ export const memoryGrepTool = tool({
       results.map((memory, index) =>
         `${index + 1}. ${memory.content}\n   [${new Date(memory.createdAt).toLocaleDateString('zh-CN')} - ${memory.type}]`
       ).join('\n\n');
+  },
+});
+
+export const listMemoryCategoriesTool = tool({
+  description: "列出当前可用的记忆分类，便于查看有哪些分类可检索或管理。",
+  inputSchema: z.object({}),
+  execute: async () => {
+    const categories = await getMemoryCategories();
+    if (categories.length === 0) return "暂无记忆分类";
+    return categories.map((category, index) => `${index + 1}. ${category.name}${category.disabled ? "（已停用）" : ""}`).join('\n');
+  },
+});
+
+export const reclassifyMemoryTool = tool({
+  description: "修改单条记忆的分类。",
+  inputSchema: z.object({
+    memoryId: z.string().describe("记忆 ID"),
+    category: z.string().optional().describe("新分类，留空表示清空分类"),
+  }),
+  execute: async ({ memoryId, category }) => {
+    const updated = await updateMemoryCategory(memoryId, category ?? null);
+    return updated ? `已更新记忆分类：${memoryId}` : `未找到记忆：${memoryId}`;
+  },
+});
+
+export const mergeMemoryCategoriesTool = tool({
+  description: "将一个分类合并到另一个分类。",
+  inputSchema: z.object({
+    fromCategory: z.string().describe("来源分类"),
+    toCategory: z.string().optional().describe("目标分类，留空表示清空来源分类"),
+  }),
+  execute: async ({ fromCategory, toCategory }) => {
+    const updatedCount = await mergeMemoryCategory(fromCategory, toCategory ?? null);
+    return `已处理 ${updatedCount} 个文件中的分类迁移`;
   },
 });
 

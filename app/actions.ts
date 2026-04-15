@@ -156,13 +156,13 @@ export async function deleteTodo(id: string) {
 }
 
 // Memory Actions
-export async function addMemory(content: string) {
-  await storage.addMemory(content);
+export async function addMemory(content: string, options?: { category?: string | null; categorySource?: "agent" | "user" | "system" }) {
+  await storage.addMemory(content, "memory", options);
   revalidatePath("/");
 }
 
-export async function addLongTermMemory(content: string) {
-  await storage.addLongTermMemory(content);
+export async function addLongTermMemory(content: string, options?: { category?: string | null; categorySource?: "agent" | "user" | "system" }) {
+  await storage.addLongTermMemory(content, options);
   revalidatePath("/");
 }
 
@@ -176,6 +176,22 @@ export async function getLongTermMemories() {
 
 export async function getRecentMemories() {
   return await storage.getRecentMemories(100);
+}
+
+export async function getMemoryCategories() {
+  return await storage.getMemoryCategories();
+}
+
+export async function updateMemoryCategory(memoryId: string, category?: string | null) {
+  const updated = await storage.updateMemoryCategory(memoryId, category, "user");
+  revalidatePath("/");
+  return updated;
+}
+
+export async function mergeMemoryCategory(fromCategory: string, toCategory?: string | null) {
+  const updatedCount = await storage.bulkUpdateMemoryCategory(fromCategory, toCategory, "user");
+  revalidatePath("/");
+  return updatedCount;
 }
 
 function summarizeNoteForMemory(text: string, limit: number = 120) {

@@ -26,6 +26,7 @@ interface Memory {
   content: string;
   type: string;
   createdAt: string;
+  category?: string | null;
 }
 
 interface ChatInterfaceProps {

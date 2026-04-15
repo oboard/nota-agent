@@ -10,11 +10,12 @@ interface SearchResult {
   date: string;
   type: 'memory' | 'note' | 'chat';
   highlight?: string;
+  category?: string | null;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, types = ['memory', 'note', 'chat'] } = await request.json();
+    const { query, types = ['memory', 'note', 'chat'], categories = [] } = await request.json();
     
     if (!query || typeof query !== 'string') {
       return NextResponse.json({ results: [] });
@@ -26,13 +27,14 @@ export async function POST(request: NextRequest) {
     // 搜索记忆
     if (types.includes('memory')) {
       try {
-        const memories = await storage.searchMemories(query, 10);
+        const memories = await storage.searchMemories(query, 10, { categories });
         memories.forEach(memory => {
           results.push({
             id: memory.id,
             content: memory.content,
             date: memory.createdAt,
             type: 'memory',
+            category: memory.category || null,
           });
         });
       } catch (error) {
