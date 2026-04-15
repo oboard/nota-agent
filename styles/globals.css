@@ -13,11 +13,13 @@
 }
 
 @layer base {
+    
     .sd-theme {
         color: color-mix(in oklab, currentColor 88%, transparent);
         line-height: 1.5;
         font-size: 0.8125rem;
         font-feature-settings: "liga" 1, "calt" 1;
+        --spacing: 0.2rem;
     }
 
     .sd-theme :where(h1, h2, h3, h4) {
@@ -90,31 +92,87 @@
     }
 
     .sd-theme :where(code):not(:where(pre code)) {
-        border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
-        background: color-mix(in oklab, currentColor 5%, transparent);
-        border-radius: 0.42rem;
-        padding: 0.08rem 0.3rem;
+        border: 1px solid color-mix(in oklab, currentColor 10%, white 78%);
+        background: color-mix(in oklab, white 90%, currentColor 4%);
+        border-radius: 0.5rem;
+        padding: 0.1rem 0.34rem;
         font-size: 0.78em;
         font-family: var(--font-mono);
-        color: color-mix(in oklab, currentColor 95%, transparent);
+        color: color-mix(in oklab, currentColor 82%, transparent);
     }
 
     .sd-theme :where(pre) {
         overflow-x: auto;
-        border: 1px solid color-mix(in oklab, currentColor 9%, transparent);
-        background:
-            linear-gradient(180deg, color-mix(in oklab, currentColor 4%, transparent), color-mix(in oklab, currentColor 2%, transparent));
-        box-shadow: inset 0 1px 0 color-mix(in oklab, currentColor 4%, transparent);
-        border-radius: 0.85rem;
-        padding: 0.7rem 0.8rem;
+        border: 1px solid color-mix(in oklab, currentColor 10%, white 76%);
+        background: color-mix(in oklab, white 92%, currentColor 3%);
+        border-radius: 0.95rem;
+        padding: 0.85rem 0.95rem;
     }
 
     .sd-theme :where(pre code) {
         border: 0;
         background: transparent;
         padding: 0;
-        font-size: 0.82em;
-        line-height: 1.55;
+        font-size: 0.84em;
+        line-height: 1.6;
+    }
+
+    .sd-theme [data-streamdown="code-block"] {
+        margin-block: 0.55rem;
+        overflow: hidden;
+        border: 1px solid color-mix(in oklab, currentColor 10%, white 76%);
+        border-radius: 0.95rem;
+        background: color-mix(in oklab, white 94%, currentColor 2%);
+    }
+
+    .sd-theme [data-streamdown="code-block-header"] {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid color-mix(in oklab, currentColor 8%, white 72%);
+        background: color-mix(in oklab, white 88%, currentColor 4%);
+        color: color-mix(in oklab, currentColor 52%, transparent);
+        font-size: 0.68rem;
+        line-height: 1;
+    }
+
+    .sd-theme [data-streamdown="code-block-header"] span {
+        font-family: var(--font-mono);
+        letter-spacing: 0.01em;
+    }
+
+    .sd-theme [data-streamdown="code-block-header"] button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.45rem;
+        padding: 0.18rem;
+        color: color-mix(in oklab, currentColor 82%, transparent);
+        transition: background-color 160ms ease, color 160ms ease;
+    }
+
+    .sd-theme [data-streamdown="code-block-header"] button:hover:not(:disabled) {
+        background: color-mix(in oklab, currentColor 7%, white 70%);
+        color: color-mix(in oklab, currentColor 96%, transparent);
+    }
+
+    .sd-theme [data-streamdown="code-block"] :where(pre) {
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        padding: 0.8rem 0.95rem 0.9rem;
+        box-shadow: none;
+    }
+
+    .sd-theme [data-streamdown="code-block-body"] {
+        border-top: 0 !important;
+        border-color: transparent !important;
+    }
+
+    .sd-theme [data-streamdown="code-block"] :where(pre code) {
+        font-size: 0.83em;
+        line-height: 1.65;
     }
 
     .sd-theme :where(table) {
