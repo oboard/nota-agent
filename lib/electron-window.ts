@@ -1,6 +1,8 @@
 type ElectronRequire = {
   ipcRenderer?: {
     invoke: (channel: string, ...args: unknown[]) => Promise<unknown>
+    on?: (channel: string, listener: (...args: unknown[]) => void) => void
+    removeListener?: (channel: string, listener: (...args: unknown[]) => void) => void
   }
 }
 
@@ -47,4 +49,16 @@ export async function openNoteWindow(noteId: string) {
   if (!ipcRenderer) return false
 
   return Boolean(await ipcRenderer.invoke('window:open-note', noteId))
+}
+
+export function subscribeMemoryConsolidated(listener: () => void) {
+  const ipcRenderer = getIpcRenderer()
+  if (!ipcRenderer?.on || !ipcRenderer.removeListener) return () => {}
+
+  const handler = () => listener()
+  ipcRenderer.on('memory:consolidated', handler)
+
+  return () => {
+    ipcRenderer.removeListener?.('memory:consolidated', handler)
+  }
 }

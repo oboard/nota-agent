@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
+import { BrowserWindow } from 'electron';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -63,13 +64,16 @@ export async function checkAndConsolidateMemories() {
 
     console.log("[Memory Manager] Starting consolidation...");
     try {
-        await consolidateMemories();
+        const changed = await consolidateMemories();
         // Update last run time
         try {
             fs.writeFileSync(LAST_RUN_FILE, now.toString());
         } catch (error) {
             console.error(`[Memory Manager] Error writing last run file: ${error}`);
             // Continue execution even if we can't write the last run file
+        }
+        if (changed) {
+            notifyMemoryConsolidated();
         }
         console.log("[Memory Manager] Consolidation completed successfully.");
     } catch (error) {
@@ -114,25 +118,25 @@ function parseMemoriesFromContent(content: string): MemoryEntry[] {
 /**
  * 整合今天的记忆（基于时间分组）
  */
-async function consolidateMemories() {
+async function consolidateMemories(): Promise<boolean> {
     const today = new Date().toISOString().split("T")[0];
     const filePath = path.join(MEMORIES_DIR, `${today}.md`);
 
     // 检查目录是否存在
     if (!fs.existsSync(MEMORIES_DIR)) {
         console.log(`[Memory Manager] Memories directory does not exist: ${MEMORIES_DIR}`);
-        return;
+        return false;
     }
 
     if (!fs.existsSync(filePath)) {
         console.log(`[Memory Manager] No memory file found for today (${today}).`);
-        return;
+        return false;
     }
 
     const content = fs.readFileSync(filePath, "utf-8");
     if (!content.trim()) {
         console.log("[Memory Manager] Memory file is empty.");
-        return;
+        return false;
     }
 
     // 解析记忆条目
@@ -140,7 +144,7 @@ async function consolidateMemories() {
 
     if (memories.length === 0) {
         console.log("[Memory Manager] No valid memories to consolidate.");
-        return;
+        return false;
     }
 
     // 按类型分组记忆
@@ -175,5 +179,16 @@ async function consolidateMemories() {
         // Overwrite with consolidated content
         fs.writeFileSync(filePath, consolidatedContent.trim());
         console.log(`[Memory Manager] Consolidated ${memories.length} memories into ${Object.keys(typeGroups).length} type groups.`);
+        return true;
+    }
+
+    return false;
+}
+
+function notifyMemoryConsolidated() {
+    for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+            win.webContents.send('memory:consolidated');
+        }
     }
 }

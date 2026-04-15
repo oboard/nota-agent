@@ -1,58 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Button } from "@heroui/button";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/modal";
 import { ScrollShadow } from "@heroui/scroll-shadow";
 import { Brain } from 'lucide-react';
-
-interface Memory {
-  id: string;
-  content: string;
-  type: string;
-  createdAt: string;
-  category?: string | null;
-}
+import { useMemories } from "@/lib/hooks/use-memories";
 
 interface RecentContextPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  memories?: Memory[];
 }
 
-export function RecentContextPopup({ isOpen, onClose, memories = [] }: RecentContextPopupProps) {
-  const [localMemories, setLocalMemories] = useState<Memory[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      // 优先使用传入的 memories，如果没有则从 localStorage 获取
-      if (memories && memories.length > 0) {
-        setLocalMemories(memories);
-      } else {
-        fetchMemoriesFromStorage();
-      }
-    }
-  }, [isOpen, memories]);
-
-  const fetchMemoriesFromStorage = async () => {
-    setIsLoading(true);
-    try {
-      // 从 localStorage 获取 memories 数据作为备选
-      const savedMemories = localStorage.getItem('nota-memories');
-      if (savedMemories) {
-        const parsedMemories = JSON.parse(savedMemories);
-        setLocalMemories(parsedMemories);
-      } else {
-        setLocalMemories([]);
-      }
-    } catch (error) {
-      console.error('获取记忆失败:', error);
-      setLocalMemories([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export function RecentContextPopup({ isOpen, onClose }: RecentContextPopupProps) {
+  const { memories: localMemories, isLoading } = useMemories();
 
   return (
     <Modal

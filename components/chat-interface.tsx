@@ -20,6 +20,7 @@ import { ImageIcon, Save, ArrowUp } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
 import { Navbar } from './navbar';
+import { useMemories } from "@/lib/hooks/use-memories";
 
 interface Memory {
   id: string;
@@ -56,6 +57,7 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   const [isElectron, setIsElectron] = useState(false);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { setMemories } = useMemories();
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1024px)');
@@ -96,6 +98,12 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   const refreshData = useCallback(async () => {
     setTodos(await getTodos());
   }, []);
+
+  useEffect(() => {
+    if (memories.length > 0) {
+      setMemories(memories);
+    }
+  }, [memories, setMemories]);
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
@@ -441,7 +449,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
         showChatControls={true}
         onDateSelect={handleDateSelect}
         onRefreshTodos={refreshData}
-        memories={memories}
       />
 
       {/* Mobile DatePanel Drawer */}

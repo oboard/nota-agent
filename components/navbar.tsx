@@ -18,6 +18,7 @@ import { GithubIcon, Logo, SearchIcon } from "@/components/icons";
 import { RecentContextPopup } from "@/components/recent-context-popup";
 import { SearchPopup } from "@/components/search-popup";
 import { buildInternalNoteUrl } from "@/lib/note-window";
+import { useMemories } from "@/lib/hooks/use-memories";
 import { useDatePanelStore } from "@/lib/stores/date-panel-store";
 import { useTodoPanelStore } from "@/lib/stores/todo-panel-store";
 import { getAlwaysOnTop, isElectronRuntime, openNotesBoardWindow, toggleAlwaysOnTop } from "@/lib/electron-window";
@@ -47,7 +48,6 @@ interface NavbarProps {
   onDateSelect?: (date: string) => void;
   onRefreshTodos?: () => void;
   showChatControls?: boolean;
-  memories?: any[];
 }
 
 const iconButtonClass =
@@ -59,7 +59,6 @@ const panelButtonClass =
 export const Navbar = ({
   onDateSelect,
   showChatControls = false,
-  memories = [],
 }: NavbarProps) => {
   const pathname = usePathname();
   const isChatPage = pathname?.startsWith("/chat");
@@ -75,6 +74,7 @@ export const Navbar = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  useMemories();
   const { isDatePanelExpanded, toggleDatePanel, setExpanded: setDatePanelExpanded } = useDatePanelStore();
   const { isTodoPanelExpanded, toggleTodoPanel, setExpanded: setTodoPanelExpanded } = useTodoPanelStore();
 
@@ -376,7 +376,6 @@ export const Navbar = ({
       <RecentContextPopup
         isOpen={isRecentContextOpen}
         onClose={() => setIsRecentContextOpen(false)}
-        memories={memories}
       />
 
       <SearchPopup
