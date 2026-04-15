@@ -9,26 +9,17 @@ import { Drawer, DrawerContent } from "@heroui/drawer";
 import { Spinner } from "@heroui/spinner";
 import { addMemory, getTodos } from "@/app/actions";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls, generateId } from "ai";
-import { Streamdown } from 'streamdown';
-import { code } from '@streamdown/code';
-import { mermaid } from '@streamdown/mermaid';
-import { math } from '@streamdown/math';
-import { cjk } from '@streamdown/cjk';
 import { saveChat, loadMoreMessages, scrollToDate } from '@/app/actions';
 import { addTimestampSeparators } from '@/lib/chat-utils';
-import { getAlwaysOnTop, isElectronRuntime, toggleAlwaysOnTop } from '@/lib/electron-window';
+import { getAlwaysOnTop, isElectronRuntime } from '@/lib/electron-window';
 import { announceNotesChanged } from "@/lib/note-window";
 import { DatePanel } from '@/components/date-panel';
 import { TaskPanel } from "./task-panel";
 import { MessageItem } from "./message-item";
-import { ChevronLeft, ListTodo, ImageIcon, Save, ArrowUp, Sparkles, PanelLeft, PanelRight, Pin, PinOff, StickyNote } from 'lucide-react';
+import { ImageIcon, Save, ArrowUp } from 'lucide-react';
 import { useDatePanelStore } from '@/lib/stores/date-panel-store';
 import { useTodoPanelStore } from '@/lib/stores/todo-panel-store';
 import { Navbar } from './navbar';
-import 'katex/dist/katex.min.css';
-
-const dragRegionStyle = { WebkitAppRegion: 'drag' } as React.CSSProperties;
-const noDragRegionStyle = { WebkitAppRegion: 'no-drag' } as React.CSSProperties;
 
 interface Memory {
   id: string;
@@ -43,7 +34,6 @@ interface ChatInterfaceProps {
   memories: Memory[];
 }
 
-const plugins = { code, mermaid, math, cjk };
 
 export function ChatInterface({ chatId: _chatId, initialMessages = [], memories = [] }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
@@ -65,7 +55,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   const [isElectron, setIsElectron] = useState(false);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const titlebarInsetClass = isElectron ? "pl-20 pr-3 lg:pl-24 lg:pr-3" : "px-2.5 lg:px-3";
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1024px)');
@@ -151,12 +140,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   const messagesWithTimestamps = useMemo(
     () => addTimestampSeparators(mergedMessages ?? []),
     [mergedMessages]
-  );
-  const messageCount = mergedMessages.length;
-  const statusLabel = status === "streaming" ? "Thinking" : "Ready";
-  const selectedDateLabel = useMemo(
-    () => new Date(selectedDate).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }),
-    [selectedDate]
   );
   const latestMessageId = mergedMessages[mergedMessages.length - 1]?.id;
 
@@ -299,12 +282,6 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     setInput('');
   }, [input]);
 
-  const handleToggleAlwaysOnTop = useCallback(async () => {
-    const next = await toggleAlwaysOnTop()
-    setIsAlwaysOnTop(next)
-  }, []);
-
-  
 
   // 处理图片上传和 OCR 识别
   const handleImageUpload = useCallback(() => {
@@ -459,7 +436,7 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
       {/* 使用新的 Navbar 组件 */}
-      <Navbar 
+      <Navbar
         showChatControls={true}
         onDateSelect={handleDateSelect}
         onRefreshTodos={refreshData}
@@ -518,7 +495,7 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
                 {/* 加载更多指示器 */}
                 {isLoadingMore && (
                   <div className="flex justify-center py-2">
-                  <div className="rounded-full border border-default-200/60 bg-content1/50 px-3 py-1 text-[12px] text-default-500">加载历史消息中...</div>
+                    <div className="rounded-full border border-default-200/60 bg-content1/50 px-3 py-1 text-[12px] text-default-500">加载历史消息中...</div>
                   </div>
                 )}
 

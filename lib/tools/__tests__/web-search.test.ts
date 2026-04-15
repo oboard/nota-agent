@@ -64,7 +64,7 @@ describe("web-search live test (no mock)", () => {
             query: "OpenAI",
             limit: 3,
           },
-          {},
+          { toolCallId: "test-call", messages: [] },
         );
 
         console.info(result);
