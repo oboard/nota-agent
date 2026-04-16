@@ -15,6 +15,7 @@ import {
   listMemoryCategoriesTool,
   reclassifyMemoryTool,
   mergeMemoryCategoriesTool,
+  compressMemoriesTool,
   cleanMemoryContent,
   isValidMemoryContent,
   loadSkillTool,
@@ -115,6 +116,8 @@ export async function POST(req: Request) {
   - 任务标题至少需要3个字符，如果用户提供的标题太短，请要求用户提供更详细的描述
   - 提取记忆时，请确保提取的内容是简洁、有意义的文本，不要包含HTML标签、XML参数或其他格式化标记
   - 当用户说"以后..."、"记住..."、"我喜欢..."、"我讨厌..."等表达长期偏好或永久记住的内容时，使用 saveLongTermMemory 工具保存为长期记忆
+  - 回复时只有真正的代码才使用代码块包裹；普通文字、说明、列表、便笺内容等一律不要用代码块格式输出
+  - 当你注意到记忆中有大量重复或高度相似的条目时，主动调用 compressMemories 工具进行语义压缩去重，无需用户明确要求
   `;
 
   const result = streamText({
@@ -139,6 +142,7 @@ export async function POST(req: Request) {
       updateNote: updateNoteTool,
       deleteNote: deleteNoteTool,
       webSearch: webSearchTool,
+      compressMemories: compressMemoriesTool,
     },
     onFinish: async ({ text }) => {
       // 保存对话记录

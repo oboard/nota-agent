@@ -16,6 +16,7 @@ export {
   saveMemoryTool,
   saveLongTermMemoryTool,
   autoSaveMemoryTool,
+  compressMemoriesTool,
   memoryGrepTool,
   listMemoryCategoriesTool,
   reclassifyMemoryTool,

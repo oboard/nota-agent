@@ -1,5 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { promises as fs } from "fs";
+import * as path from "path";
 import { addMemory, addLongTermMemory, getMemories, getLongTermMemories, getMemoryCategories, updateMemoryCategory, mergeMemoryCategory } from "@/app/actions";
 import { storage } from "@/lib/storage";
 
@@ -222,6 +224,128 @@ export const mergeMemoryCategoriesTool = tool({
   execute: async ({ fromCategory, toCategory }) => {
     const updatedCount = await mergeMemoryCategory(fromCategory, toCategory ?? null);
     return `已处理 ${updatedCount} 个文件中的分类迁移`;
+  },
+});
+
+/**
+ * 压缩今天记忆文件的工具
+ * 读取当天 memories/{today}.md，调用 LLM 语义去重后写回
+ */
+export const compressMemoriesTool = tool({
+  description: "压缩今天的记忆文件，将重复或高度相似的记忆条目通过 LLM 语义去重合并，减少冗余。当你发现记忆里有很多重复内容时主动调用。",
+  inputSchema: z.object({
+    date: z.string().optional().describe("要压缩的日期，格式 YYYY-MM-DD，留空表示今天"),
+  }),
+  execute: async ({ date }) => {
+    const today = date || new Date().toISOString().split("T")[0];
+    const memoriesDir = path.join(process.cwd(), "data/memories");
+    const filePath = path.join(memoriesDir, `${today}.md`);
+
+    // 读取文件
+    let content: string;
+    try {
+      content = await fs.readFile(filePath, "utf-8");
+    } catch (err: any) {
+      if (err.code === "ENOENT") return `${today} 没有找到记忆文件`;
+      throw err;
+    }
+
+    if (!content.trim()) return "记忆文件为空，无需压缩";
+
+    // 解析所有条目（复用与 memory-manager 相同的逻辑）
+    interface MemEntry { id: string; content: string; timestamp: string; type: string; category?: string | null; categorySource?: string | null; }
+    const fileName = `${today}.md`;
+    const entries: MemEntry[] = [];
+    for (const entry of content.split("---")) {
+      const trimmed = entry.trim();
+      if (!trimmed) continue;
+      const lines = trimmed.split("\n");
+      const headerLine = lines.find(l => l.startsWith("## "));
+      if (!headerLine) continue;
+      const m = headerLine.match(/^##\s+(\w+)((?:\s+\|[^|]+)*)\s+-\s+(\d{4}-\d{2}-\d{2}T[\d:.Z]+)$/);
+      if (!m) continue;
+      const [, type, metaRaw = "", timestamp] = m;
+      const meta: Record<string, string> = {};
+      for (const part of metaRaw.split("|")) {
+        const kv = part.trim();
+        if (!kv) continue;
+        const eq = kv.indexOf("=");
+        if (eq === -1) continue;
+        meta[kv.slice(0, eq).trim()] = kv.slice(eq + 1).trim();
+      }
+      const body = lines.slice(lines.indexOf(headerLine) + 1).join("\n").trim();
+      if (!body || body.length < 3) continue;
+      entries.push({ id: meta["id"] || `${fileName}-${timestamp}`, content: body, timestamp, type: type.toLowerCase(), category: meta["category"] || null, categorySource: meta["source"] || null });
+    }
+
+    if (entries.length <= 1) return `只有 ${entries.length} 条记忆，无需压缩`;
+
+    const before = entries.length;
+
+    // 按 type 分组，各组调用 LLM 去重
+    const groups = new Map<string, MemEntry[]>();
+    for (const e of entries) {
+      if (!groups.has(e.type)) groups.set(e.type, []);
+      groups.get(e.type)!.push(e);
+    }
+
+    const apiBase = process.env.MODEL_API_BASE || "https://api.openai.com/v1";
+    const apiKey = process.env.MODEL_API_KEY;
+    const modelName = process.env.CHAT_MODEL_NAME || "gpt-3.5-turbo";
+
+    const outputParts: string[] = [];
+    let totalAfter = 0;
+
+    for (const [, group] of groups) {
+      if (group.length < 2) {
+        const e = group[0];
+        const parts: string[] = [];
+        if (e.id) parts.push(`id=${e.id}`);
+        if (e.category) parts.push(`category=${e.category}`);
+        if (e.categorySource) parts.push(`source=${e.categorySource}`);
+        const meta = parts.length > 0 ? ` | ${parts.join(" | ")}` : "";
+        outputParts.push(`## ${e.type.toUpperCase()}${meta} - ${e.timestamp}\n\n${e.content}`);
+        totalAfter += 1;
+        continue;
+      }
+
+      let mergedContents: string[] = group.map(e => e.content);
+      if (apiKey) {
+        const numbered = group.map((e, i) => `${i + 1}. ${e.content}`).join("\n");
+        const prompt = `下面是一批记忆条目，请对其进行语义去重和压缩：\n- 将表达相同或高度相似意思的条目合并为一条，保留最完整的表述\n- 保留所有独立、不重复的信息，不要遗漏\n- 每条输出一行，不加序号，不加多余格式\n- 只输出合并后的条目内容，每条占一行\n\n记忆列表：\n${numbered}`;
+        try {
+          const resp = await fetch(`${apiBase}/chat/completions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: modelName, messages: [{ role: "user", content: prompt }], temperature: 0.3 }),
+          });
+          if (resp.ok) {
+            const data = await resp.json() as any;
+            const text: string = data.choices?.[0]?.message?.content || "";
+            const lines = text.split("\n").map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+            if (lines.length > 0) mergedContents = lines;
+          }
+        } catch { /* 降级：保留原内容 */ }
+      }
+
+      const template = group[0];
+      const now = new Date().toISOString();
+      for (let i = 0; i < mergedContents.length; i++) {
+        const parts: string[] = [];
+        const newId = `${today}.md-${now}-compressed-${i}`;
+        parts.push(`id=${newId}`);
+        if (template.category) parts.push(`category=${template.category}`);
+        if (template.categorySource) parts.push(`source=${template.categorySource}`);
+        const meta = ` | ${parts.join(" | ")}`;
+        outputParts.push(`## ${template.type.toUpperCase()}${meta} - ${now}\n\n${mergedContents[i]}`);
+      }
+      totalAfter += mergedContents.length;
+    }
+
+    const newContent = outputParts.join("\n\n---\n\n") + "\n\n---\n\n";
+    await fs.writeFile(filePath, newContent, "utf-8");
+
+    return `压缩完成：${before} 条 → ${totalAfter} 条（${today}）`;
   },
 });
 
