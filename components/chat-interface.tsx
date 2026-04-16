@@ -105,7 +105,7 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
     }
   }, [memories, setMemories]);
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, stop, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
     }),
@@ -281,9 +281,12 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
   // 使用 useCallback 优化事件处理函数
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
+    if (status === 'streaming') {
+      stop();
+    }
     sendMessage({ text: input });
     setInput('');
-  }, [input, sendMessage]);
+  }, [input, sendMessage, status, stop]);
 
   const handleRemember = useCallback(async () => {
     if (!input.trim()) return;
@@ -544,8 +547,14 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
             <div className="mx-auto w-full max-w-3xl">
               <div className="mb-1 flex items-center justify-between gap-2 text-[9px] text-default-500">
                 <div className="flex items-center gap-1.5">
-                  <span className="rounded-full border border-default-200/60 bg-content1/50 px-2 py-0.5">Enter to send</span>
-                  <span className="rounded-full border border-default-200/60 bg-content1/50 px-2 py-0.5">Shift + Enter for newline</span>
+                  {status === "streaming" && input.trim() ? (
+                    <span className="rounded-full border border-warning-200/60 bg-warning-50/50 px-2 py-0.5 text-warning-600">Enter 打断并发送</span>
+                  ) : (
+                    <>
+                      <span className="rounded-full border border-default-200/60 bg-content1/50 px-2 py-0.5">Enter to send</span>
+                      <span className="rounded-full border border-default-200/60 bg-content1/50 px-2 py-0.5">Shift + Enter for newline</span>
+                    </>
+                  )}
                 </div>
                 <div>{input.trim().length} chars</div>
               </div>
@@ -605,15 +614,14 @@ export function ChatInterface({ chatId: _chatId, initialMessages = [], memories 
                   <Button
                     size="sm"
                     radius="full"
-                    color="primary"
+                    color={status === "streaming" && input.trim() ? "warning" : "primary"}
                     variant={input.trim() ? "solid" : "flat"}
                     onPress={handleSend}
-                    isLoading={status === "streaming"}
                     isDisabled={!input.trim()}
-                    className={`h-7 min-h-7 min-w-[72px] px-2 text-[11px] ${input.trim() ? 'bg-primary text-primary-foreground' : 'border border-default-200/60 bg-content2/50 text-default-500'}`}
-                    endContent={status !== "streaming" && <ArrowUp className="h-4 w-4" />}
+                    className={`h-7 min-h-7 min-w-[72px] px-2 text-[11px] ${input.trim() ? '' : 'border border-default-200/60 bg-content2/50 text-default-500'}`}
+                    endContent={<ArrowUp className="h-4 w-4" />}
                   >
-                    Send
+                    {status === "streaming" && input.trim() ? "打断" : "Send"}
                   </Button>
                 </div>
               </div>
