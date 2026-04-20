@@ -92,7 +92,7 @@ export class ChatStorage {
    * 将任意消息标准化为 UIMessage 结构
    */
   private normalizeMessage(message: any): UIMessage {
-    const createdAt = message.createdAt ?? new Date().toISOString();
+    const createdAt = message.createdAt; // 不再用 new Date() 兜底，由调用方负责分配时间戳
     const id = message.id ?? generateId();
     const parts =
       message.parts ??
@@ -244,6 +244,7 @@ export class ChatStorage {
 
   /**
    * 保存聊天消息 - 只保存今天创建的消息到今天的文件
+   * 对没有 createdAt 的消息，按其在数组中的顺序分配递增时间戳，避免所有消息共享同一时刻
    */
   async saveChat(messages: UIMessage[]): Promise<void> {
     const todayFile = this.getTodayFileName();
@@ -254,20 +255,39 @@ export class ChatStorage {
       mkdirSync(this.dataDir, { recursive: true });
     }
 
+    // 先读取已保存的消息，建立 id -> createdAt 映射，用于继承已有时间戳
+    const existingMessages = await this.readMessagesFromFile(filePath);
+    const existingTimestamps = new Map<string, string>();
+    for (const msg of existingMessages) {
+      if (msg.id && (msg as any).createdAt) {
+        existingTimestamps.set(msg.id, (msg as any).createdAt);
+      }
+    }
+
+    // 给每条消息分配准确的 createdAt：
+    // 1. 优先使用消息自带的 createdAt
+    // 2. 次之继承文件中已保存的 createdAt
+    // 3. 兜底按索引顺序分配递增时间戳（间隔 1ms），基准时间取当前时刻
+    const now = Date.now();
+    const stamped = (messages || []).map((msg: any, idx: number) => {
+      if (msg.createdAt) return msg;
+      const inherited = existingTimestamps.get(msg.id);
+      if (inherited) return { ...msg, createdAt: inherited };
+      // 按索引递增：最早的消息时间最小，确保顺序正确
+      return { ...msg, createdAt: new Date(now + idx).toISOString() };
+    });
+
     // 获取今天的日期字符串用于比较
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     // 过滤出今天的消息
-    const todayMessages = (messages || []).filter((msg: any) => {
-      const createdAt = msg.createdAt;
-      if (!createdAt) return true; // 没有时间戳的消息默认保存到今天
-      const msgDate = new Date(createdAt);
+    const todayMessages = stamped.filter((msg: any) => {
+      const msgDate = new Date(msg.createdAt);
       const msgStr = `${msgDate.getFullYear()}-${String(msgDate.getMonth() + 1).padStart(2, '0')}-${String(msgDate.getDate()).padStart(2, '0')}`;
       return msgStr === todayStr;
     });
 
-    const existingMessages = await this.readMessagesFromFile(filePath);
     const merged = this.normalizeMessages([...existingMessages, ...todayMessages]);
 
     await writeFile(filePath, JSON.stringify(merged, null, 2));
